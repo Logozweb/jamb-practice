@@ -141,8 +141,20 @@ export const AdminDashboard = () => {
   };
 
   useEffect(() => {
-    refreshCandidates();
-    loadPaymentData();
+    async function syncAllDataFromDatabase() {
+      try {
+        await Promise.all([
+          refreshCandidates(),
+          loadExamResults(),
+          handleRefreshOutbox(),
+          loadPaymentData(),
+          fetchEmailSettings().then(cfg => { if (cfg) setEmailConfig(cfg); })
+        ]);
+      } catch (err) {
+        console.warn('Error during admin data synchronization:', err);
+      }
+    }
+    syncAllDataFromDatabase();
   }, []);
 
   const handleSavePaymentConfig = async (e) => {
