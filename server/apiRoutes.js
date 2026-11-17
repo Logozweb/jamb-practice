@@ -295,7 +295,11 @@ export function databaseApiPlugin(env = {}) {
 
             const pSettings = db.getPaymentSettings();
             const secretKey = (pSettings.paystackSecretKey || process.env.PAYSTACK_SECRET_KEY || '').trim();
-            const expectedKobo = (pSettings.accessFeeNaira || 50) * 100;
+            const baseFeeNaira = pSettings.accessFeeNaira || 50;
+            // Reactivation after malpractice appeal review pays HALF the normal fee
+            const isReactivation = candidate.appealStatus === 'require_payment';
+            const effectiveFeeNaira = isReactivation ? Math.round(baseFeeNaira / 2) : baseFeeNaira;
+            const expectedKobo = effectiveFeeNaira * 100;
 
             let paymentSuccess = false;
             let paymentDetails = {
@@ -344,7 +348,7 @@ export function databaseApiPlugin(env = {}) {
                 if (paidKobo < expectedKobo) {
                   paymentDetails.gatewayResponse = `Amount paid (₦${paidKobo / 100}) is less than required fee (₦${expectedKobo / 100})`;
                   db.recordPayment(paymentDetails);
-                  return sendJson(res, 400, { success: false, error: 'Amount paid is less than the required portal unlock fee.' });
+                  return sendJson(res, 400, { success: false, error: `Amount paid is less than the required portal unlock fee of ₦${expectedKobo / 100}.` });
                 }
 
                 paymentSuccess = true;

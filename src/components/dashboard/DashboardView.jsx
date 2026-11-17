@@ -464,7 +464,7 @@ export const DashboardView = () => {
           </div>
         )}
 
-        {/* Account Pending Approval Banner - Direct Paystack Unlock Option (Normal Registration) */}
+        {/* Account Pending Approval Banner - Direct Paystack Unlock Option (Normal Registration vs Appeal Re-Activation) */}
         {status === 'Pending' && !isMalpracticeSanctioned && (
           <div className="bg-gradient-to-r from-amber-500/10 via-emerald-500/15 to-amber-500/10 border-2 border-amber-400 rounded-2xl p-4 sm:p-5 shadow-md flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in">
             <div className="flex items-start sm:items-center gap-3.5">
@@ -474,24 +474,36 @@ export const DashboardView = () => {
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-sm sm:text-base font-black text-slate-900 uppercase">
-                    Account Status: Pending Portal Activation
+                    {currentUser.appealStatus === 'require_payment'
+                      ? 'Account Status: Conditional Reactivation Approved'
+                      : 'Account Status: Pending Portal Activation'}
                   </h2>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-white text-[10px] font-black uppercase tracking-wider">
-                    Slip & Choices Unlocked
+                  <span className={`px-2 py-0.5 rounded-full text-white text-[10px] font-black uppercase tracking-wider ${
+                    currentUser.appealStatus === 'require_payment' ? 'bg-amber-600' : 'bg-emerald-500'
+                  }`}>
+                    {currentUser.appealStatus === 'require_payment' ? 'Half-Price Relief (50%)' : 'Slip & Choices Unlocked'}
                   </span>
                 </div>
                 <p className="text-xs text-slate-600 mt-0.5 max-w-xl">
-                  Your <strong>Registration Slip</strong> and <strong>Choices & O'Level</strong> are accessible now. Unlock CBT Mock Simulations and JAMB CAPS tracking instantly by paying the <strong>₦50</strong> activation fee via Paystack.
+                  {currentUser.appealStatus === 'require_payment' ? (
+                    <span>
+                      The Administrator reviewed your appeal and granted <strong>50% fee relief</strong>. Pay <strong>₦25</strong> (half the standard ₦50 fee) to reactivate and unlock full CBT examination practice.
+                    </span>
+                  ) : (
+                    <span>
+                      Your <strong>Registration Slip</strong> and <strong>Choices & O'Level</strong> are accessible now. Unlock CBT Mock Simulations and JAMB CAPS tracking instantly by paying the <strong>₦50</strong> activation fee via Paystack.
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
             <button
               type="button"
-              onClick={() => triggerPaymentPrompt('all portal features')}
+              onClick={() => triggerPaymentPrompt(currentUser.appealStatus === 'require_payment' ? 'Portal Re-Activation' : 'all portal features')}
               className="w-full sm:w-auto px-5 py-2.5 bg-[#006633] hover:bg-[#004d25] text-white rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 flex-shrink-0"
             >
               <CreditCard className="w-4 h-4 text-amber-300" />
-              <span>Unlock Now (Pay ₦50)</span>
+              <span>{currentUser.appealStatus === 'require_payment' ? 'Reactivate (Pay ₦25)' : 'Unlock Now (Pay ₦50)'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>

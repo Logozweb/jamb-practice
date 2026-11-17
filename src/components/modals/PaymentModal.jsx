@@ -26,7 +26,9 @@ export const PaymentModal = ({ isOpen, onClose, targetActionName = 'this feature
 
   if (!isOpen || !currentUser) return null;
 
-  const feeNaira = paymentSettings.accessFeeNaira || 50;
+  const isReactivation = currentUser.appealStatus === 'require_payment';
+  const baseFeeNaira = paymentSettings.accessFeeNaira || 50;
+  const feeNaira = isReactivation ? Math.round(baseFeeNaira / 2) : baseFeeNaira;
   const hasLiveKey = Boolean(paymentSettings.paystackPublicKey && paymentSettings.paystackPublicKey.trim().startsWith('pk_'));
 
   const handleInitiatePayment = async () => {
@@ -139,18 +141,27 @@ export const PaymentModal = ({ isOpen, onClose, targetActionName = 'this feature
         <div className="p-4 sm:p-5 space-y-4 overflow-y-auto">
           
           {/* Price Box */}
-          <div className="bg-emerald-50 border-2 border-emerald-300 rounded-xl p-3.5 flex items-center justify-between">
+          <div className={`${isReactivation ? 'bg-amber-50 border-amber-400' : 'bg-emerald-50 border-emerald-300'} border-2 rounded-xl p-3.5 flex items-center justify-between`}>
             <div>
               <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                One-Time Activation Fee
+                {isReactivation ? 'Re-Activation Fee (50% Appeal Relief)' : 'One-Time Activation Fee'}
               </div>
               <div className="flex items-baseline gap-1.5">
                 <span className="text-2xl sm:text-3xl font-black text-[#006633]">₦{feeNaira}</span>
-                <span className="text-xs text-slate-500 font-semibold line-through">₦1,000</span>
-                <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">95% OFF Test Phase</span>
+                {isReactivation ? (
+                  <>
+                    <span className="text-xs text-slate-500 font-semibold line-through">₦{baseFeeNaira}</span>
+                    <span className="text-[10px] font-bold text-amber-900 bg-amber-200 px-1.5 py-0.5 rounded">Half-Price (50% Relief)</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-xs text-slate-500 font-semibold line-through">₦1,000</span>
+                    <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">95% OFF Test Phase</span>
+                  </>
+                )}
               </div>
             </div>
-            <div className="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-md">
+            <div className={`w-10 h-10 rounded-full ${isReactivation ? 'bg-amber-600' : 'bg-emerald-600'} text-white flex items-center justify-center shadow-md`}>
               <CreditCard className="w-5 h-5" />
             </div>
           </div>
@@ -253,7 +264,7 @@ export const PaymentModal = ({ isOpen, onClose, targetActionName = 'this feature
                 </>
               ) : (
                 <>
-                  <span>Pay ₦{feeNaira} & Unlock Portal</span>
+                  <span>{isReactivation ? `Pay ₦${feeNaira} (Half Fee) & Reactivate Portal` : `Pay ₦${feeNaira} & Unlock Portal`}</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}

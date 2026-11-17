@@ -907,6 +907,8 @@ export function approveCandidateByPayment(candidateId, reference, paidAt = null)
   db.prepare(`
     UPDATE candidates
     SET status = 'Approved',
+        disapproval_reason = NULL,
+        appeal_status = CASE WHEN appeal_status = 'require_payment' THEN 'reinstated' ELSE appeal_status END,
         payment_reference = ?,
         payment_date = ?,
         updated_at = ?
@@ -1046,19 +1048,19 @@ export function resolveAppeal(appealId, action, adminNotes = '') {
     `).run(now, candidateId);
 
   } else if (action === 'require_payment') {
-    // 2. Clear sanction but require re-activation payment before taking exams
+    // 2. Clear sanction but require half re-activation payment before taking exams
     db.prepare(`
       UPDATE candidate_appeals
       SET status = 'require_payment',
           admin_action = ?,
           resolved_at = ?
       WHERE id = ?
-    `).run(adminNotes || 'Sanction waived; Re-activation payment required to retake exams', now, appealId);
+    `).run(adminNotes || 'Appeal approved with 50% re-activation relief. Candidate pays half fee to unlock portal.', now, appealId);
 
     db.prepare(`
       UPDATE candidates
       SET status = 'Pending',
-          disapproval_reason = 'Re-activation fee required: Administrator reviewed appeal and approved conditional re-entry upon payment of exam portal fee.',
+          disapproval_reason = 'Conditional re-activation approved: Administrator reviewed appeal and granted 50% relief fee. Complete half-payment to unlock portal.',
           appeal_status = 'require_payment',
           updated_at = ?
       WHERE id = ?

@@ -1130,7 +1130,7 @@ export const AdminDashboard = () => {
                 </div>
               </div>
               <div className="p-3 rounded-xl bg-blue-50 border border-blue-200">
-                <div className="text-[10px] font-bold text-blue-800 uppercase">Re-Payment Required</div>
+                <div className="text-[10px] font-bold text-blue-800 uppercase">Half-Fee Re-Activation</div>
                 <div className="text-xl font-black text-blue-900 mt-0.5">
                   {appeals.filter(a => a.status === 'require_payment').length}
                 </div>
@@ -1207,7 +1207,7 @@ export const AdminDashboard = () => {
                           ) : appeal.status === 'require_payment' ? (
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-black text-xs uppercase bg-blue-100 text-blue-900 border border-blue-300">
                               <CreditCard className="w-3.5 h-3.5 text-blue-600" />
-                              <span>Re-Payment Required (₦50)</span>
+                              <span>Re-Payment Required (Half Fee: ₦25)</span>
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-black text-xs uppercase bg-rose-900 text-rose-200 border border-rose-700">
@@ -1262,16 +1262,16 @@ export const AdminDashboard = () => {
                               <span>Reinstate Profile (Full Unlock)</span>
                             </button>
 
-                            {/* Action 2: Require Re-Activation Payment */}
+                            {/* Action 2: Require Half Re-Activation Payment */}
                             <button
                               type="button"
                               disabled={isActionBusy}
                               onClick={() => handleResolveAppeal(appeal.id, 'require_payment')}
                               className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50"
-                              title="Waive malpractice disqualification but reset to Pending. Candidate must pay ₦50 to unlock CBT mock."
+                              title="Waive malpractice sanction and allow candidate to reactivate at 50% discount (half-price of portal fee: ₦25 of ₦50)."
                             >
                               <CreditCard className="w-4 h-4 text-amber-200" />
-                              <span>Require Re-Payment (₦50)</span>
+                              <span>Require Half Re-Payment (50%)</span>
                             </button>
 
                             {/* Action 3: Complete Blockage / Permanent Ban */}
