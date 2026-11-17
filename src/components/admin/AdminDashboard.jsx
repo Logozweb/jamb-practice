@@ -42,7 +42,10 @@ import {
   Inbox,
   UserPlus,
   Plus,
-  Copy
+  Copy,
+  ShieldAlert,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { SearchableSelect } from '../common/SearchableSelect';
 
@@ -126,6 +129,10 @@ export const AdminDashboard = () => {
   const [testingApi, setTestingApi] = useState(false);
   const [testResult, setTestResult] = useState(null);
   const [settingsSavedToast, setSettingsSavedToast] = useState(false);
+
+  useEffect(() => {
+    setTempSettings({ ...examSettings });
+  }, [examSettings]);
 
   // Admin password change state
   const [oldPass, setOldPass] = useState('');
@@ -261,7 +268,7 @@ export const AdminDashboard = () => {
   const pendingCount = candidates.filter(c => c.status === 'Pending').length;
   const disapprovedCount = candidates.filter(c => c.status === 'Disapproved').length;
 
-  // Combine persistent SQLite database results and local candidate histories
+  // Combine persistent SQLite database results and local candidate histories (FILTERED TO FULL MOCK EXAMS ONLY)
   const allExamSubmissions = (dbExamResults.length > 0
     ? dbExamResults
     : candidates.flatMap(c =>
@@ -273,7 +280,16 @@ export const AdminDashboard = () => {
           candidateEmail: c.email
         }))
       )
-  ).sort((a, b) => new Date(b.dateTaken || b.date || 0) - new Date(a.dateTaken || a.date || 0));
+  )
+    .filter(sub => {
+      // Exclude test / quick exams: only log Full Mock exams
+      if (sub.examType === 'test' || sub.examLength === 'quick') return false;
+      if (String(sub.id || '').startsWith('test_')) return false;
+      const totalQ = (sub.subjectBreakdown || []).reduce((sum, s) => sum + (s.totalQuestions || 0), 0);
+      if (totalQ > 0 && totalQ <= 60) return false;
+      return true;
+    })
+    .sort((a, b) => new Date(b.dateTaken || b.date || 0) - new Date(a.dateTaken || a.date || 0));
 
   // Filter candidates
   const filteredCandidates = candidates.filter(c => {
@@ -287,6 +303,22 @@ export const AdminDashboard = () => {
 
     return matchesSearch && matchesStatus;
   });
+
+  // Pagination states & slices
+  const [candPage, setCandPage] = useState(1);
+  const candPerPage = 10;
+  const totalCandPages = Math.max(1, Math.ceil(filteredCandidates.length / candPerPage));
+  const paginatedCandidates = filteredCandidates.slice((candPage - 1) * candPerPage, candPage * candPerPage);
+
+  const [outboxPage, setOutboxPage] = useState(1);
+  const outboxPerPage = 10;
+  const totalOutboxPages = Math.max(1, Math.ceil(outboxLogs.length / outboxPerPage));
+  const paginatedOutbox = outboxLogs.slice((outboxPage - 1) * outboxPerPage, outboxPage * outboxPerPage);
+
+  const [resultsPage, setResultsPage] = useState(1);
+  const resultsPerPage = 10;
+  const totalResultsPages = Math.max(1, Math.ceil(allExamSubmissions.length / resultsPerPage));
+  const paginatedResults = allExamSubmissions.slice((resultsPage - 1) * resultsPerPage, resultsPage * resultsPerPage);
 
   const handleConfirmDisapprove = () => {
     if (disapproveTargetId) {
@@ -451,65 +483,73 @@ export const AdminDashboard = () => {
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-slate-300 gap-2 overflow-x-auto bg-white px-4 pt-2 rounded-t-xl shadow-sm">
+        <div className="flex border-b border-slate-300 gap-1 sm:gap-2 overflow-x-auto bg-white px-2 sm:px-4 pt-1.5 sm:pt-2 rounded-t-xl shadow-sm">
           <button
             onClick={() => setActiveTab('candidates')}
-            className={`flex items-center gap-2 px-4 py-2.5 font-bold text-xs sm:text-sm border-b-2 transition-all whitespace-nowrap ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 font-bold text-xs sm:text-sm border-b-2 transition-all whitespace-nowrap ${
               activeTab === 'candidates'
                 ? 'border-[#006633] text-[#006633] bg-emerald-50/50 rounded-t-lg'
                 : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
             <Users className="w-4 h-4" />
-            <span>Candidate Registrations ({totalCandidates})</span>
+            <span className="hidden sm:inline">Candidate Registrations</span>
+            <span className="sm:hidden">Candidates</span>
+            <span>({totalCandidates})</span>
           </button>
 
           <button
             onClick={() => { setActiveTab('email'); handleRefreshOutbox(); }}
-            className={`flex items-center gap-2 px-4 py-2.5 font-bold text-xs sm:text-sm border-b-2 transition-all whitespace-nowrap ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 font-bold text-xs sm:text-sm border-b-2 transition-all whitespace-nowrap ${
               activeTab === 'email'
                 ? 'border-[#006633] text-[#006633] bg-emerald-50/50 rounded-t-lg'
                 : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
             <Mail className="w-4 h-4" />
-            <span>Email & OTP Dispatch Center ({outboxLogs.length})</span>
+            <span className="hidden sm:inline">Email &amp; OTP Dispatch Center</span>
+            <span className="sm:hidden">Email &amp; OTP</span>
+            <span>({outboxLogs.length})</span>
           </button>
 
           <button
             onClick={() => setActiveTab('api')}
-            className={`flex items-center gap-2 px-4 py-2.5 font-bold text-xs sm:text-sm border-b-2 transition-all whitespace-nowrap ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 font-bold text-xs sm:text-sm border-b-2 transition-all whitespace-nowrap ${
               activeTab === 'api'
                 ? 'border-[#006633] text-[#006633] bg-emerald-50/50 rounded-t-lg'
                 : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
             <Globe className="w-4 h-4" />
-            <span>JAMB Question API & Sources</span>
+            <span className="hidden sm:inline">JAMB Question API &amp; Sources</span>
+            <span className="sm:hidden">Question API</span>
           </button>
 
           <button
             onClick={() => setActiveTab('settings')}
-            className={`flex items-center gap-2 px-4 py-2.5 font-bold text-xs sm:text-sm border-b-2 transition-all whitespace-nowrap ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 font-bold text-xs sm:text-sm border-b-2 transition-all whitespace-nowrap ${
               activeTab === 'settings'
                 ? 'border-[#006633] text-[#006633] bg-emerald-50/50 rounded-t-lg'
                 : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
             <Settings className="w-4 h-4" />
-            <span>CBT Rules & Exam Control</span>
+            <span className="hidden sm:inline">CBT Rules &amp; Exam Control</span>
+            <span className="sm:hidden">CBT Rules</span>
           </button>
 
           <button
             onClick={() => { setActiveTab('results'); loadExamResults(); }}
-            className={`flex items-center gap-2 px-4 py-2.5 font-bold text-xs sm:text-sm border-b-2 transition-all whitespace-nowrap ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 font-bold text-xs sm:text-sm border-b-2 transition-all whitespace-nowrap ${
               activeTab === 'results'
                 ? 'border-[#006633] text-[#006633] bg-emerald-50/50 rounded-t-lg'
                 : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
             <Award className="w-4 h-4" />
-            <span>Examination Results Log ({allExamSubmissions.length})</span>
+            <span className="hidden sm:inline">Examination Results Log</span>
+            <span className="sm:hidden">Results Log</span>
+            <span>({allExamSubmissions.length})</span>
           </button>
         </div>
 
@@ -523,7 +563,7 @@ export const AdminDashboard = () => {
                 <input
                   type="text"
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => { setSearchTerm(e.target.value); setCandPage(1); }}
                   placeholder="Search by name, reg number, email..."
                   className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-[#006633]/20"
                 />
@@ -534,7 +574,7 @@ export const AdminDashboard = () => {
                   <Filter className="w-4 h-4 text-slate-500" />
                   <select
                     value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
+                    onChange={(e) => { setStatusFilter(e.target.value); setCandPage(1); }}
                     className="px-3 py-2 rounded-lg border border-slate-300 text-xs font-bold text-slate-700 bg-slate-50"
                   >
                     <option value="all">All Approval Statuses</option>
@@ -590,7 +630,7 @@ export const AdminDashboard = () => {
                       </td>
                     </tr>
                   ) : (
-                    filteredCandidates.map(cand => {
+                    paginatedCandidates.map(cand => {
                       const status = cand.status || 'Approved';
 
                       return (
@@ -651,18 +691,25 @@ export const AdminDashboard = () => {
 
                           {/* Status */}
                           <td className="p-3 text-center">
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-bold text-[10px] uppercase ${
-                              status === 'Approved'
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : status === 'Pending'
-                                ? 'bg-amber-100 text-amber-800'
-                                : 'bg-rose-100 text-rose-800'
-                            }`}>
-                              {status === 'Approved' && <CheckCircle2 className="w-3 h-3" />}
-                              {status === 'Pending' && <Clock className="w-3 h-3" />}
-                              {status === 'Disapproved' && <XCircle className="w-3 h-3" />}
-                              <span>{status}</span>
-                            </span>
+                            {(cand.status === 'Suspended' || cand.malpracticeBlocked) ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-black text-[10px] uppercase bg-red-100 text-red-800 border border-red-300">
+                                <ShieldAlert className="w-3 h-3 text-red-600" />
+                                <span>Malpractice Locked</span>
+                              </span>
+                            ) : (
+                              <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-bold text-[10px] uppercase ${
+                                status === 'Approved'
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : status === 'Pending'
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : 'bg-rose-100 text-rose-800'
+                              }`}>
+                                {status === 'Approved' && <CheckCircle2 className="w-3 h-3" />}
+                                {status === 'Pending' && <Clock className="w-3 h-3" />}
+                                {status === 'Disapproved' && <XCircle className="w-3 h-3" />}
+                                <span>{status}</span>
+                              </span>
+                            )}
                           </td>
 
                           {/* Actions */}
@@ -677,8 +724,17 @@ export const AdminDashboard = () => {
                                 <Eye className="w-4 h-4" />
                               </button>
 
-                              {/* Approve Button */}
-                              {status !== 'Approved' && (
+                              {/* Malpractice Re-instate or Approve Button */}
+                              {(cand.status === 'Suspended' || cand.malpracticeBlocked) ? (
+                                <button
+                                  onClick={() => approveCandidate(cand.id)}
+                                  className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded text-[11px] font-bold shadow-sm transition-all flex items-center gap-1"
+                                  title="Clear Malpractice Suspension & Re-instate Candidate"
+                                >
+                                  <Check className="w-3 h-3" />
+                                  <span>Re-instate Clearance</span>
+                                </button>
+                              ) : status !== 'Approved' && (
                                 <button
                                   onClick={() => approveCandidate(cand.id)}
                                   className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-bold shadow-sm transition-all flex items-center gap-1"
@@ -690,7 +746,7 @@ export const AdminDashboard = () => {
                               )}
 
                               {/* Disapprove Button */}
-                              {status !== 'Disapproved' && (
+                              {status !== 'Disapproved' && !(cand.status === 'Suspended' || cand.malpracticeBlocked) && (
                                 <button
                                   onClick={() => setDisapproveTargetId(cand.id)}
                                   className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded text-[11px] font-bold shadow-sm transition-all"
@@ -721,6 +777,46 @@ export const AdminDashboard = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Candidate Table Pagination Bar */}
+            {totalCandPages > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-200 text-xs">
+                <span className="text-slate-500 font-medium">
+                  Showing {(candPage - 1) * candPerPage + 1}–{Math.min(candPage * candPerPage, filteredCandidates.length)} of {filteredCandidates.length} candidates
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCandPage(prev => Math.max(1, prev - 1))}
+                    disabled={candPage === 1}
+                    className={`px-3 py-1.5 rounded-lg border font-bold flex items-center gap-1 transition-all ${
+                      candPage === 1
+                        ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                        : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300 shadow-sm'
+                    }`}
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    <span>Previous</span>
+                  </button>
+                  <span className="text-slate-700 font-mono font-bold px-2">
+                    Page {candPage} of {totalCandPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setCandPage(prev => Math.min(totalCandPages, prev + 1))}
+                    disabled={candPage === totalCandPages}
+                    className={`px-3 py-1.5 rounded-lg border font-bold flex items-center gap-1 transition-all ${
+                      candPage === totalCandPages
+                        ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                        : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300 shadow-sm'
+                    }`}
+                  >
+                    <span>Next</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1400,7 +1496,7 @@ export const AdminDashboard = () => {
                         </td>
                       </tr>
                     ) : (
-                      outboxLogs.map(log => (
+                      paginatedOutbox.map(log => (
                         <tr key={log.id} className="hover:bg-slate-50">
                           <td className="p-3 text-slate-500 font-mono text-[11px] whitespace-nowrap">
                             {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
@@ -1437,6 +1533,46 @@ export const AdminDashboard = () => {
                   </tbody>
                 </table>
               </div>
+
+              {/* Outbox Table Pagination Bar */}
+              {totalOutboxPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-200 text-xs">
+                  <span className="text-slate-500 font-medium">
+                    Showing {(outboxPage - 1) * outboxPerPage + 1}–{Math.min(outboxPage * outboxPerPage, outboxLogs.length)} of {outboxLogs.length} logs
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setOutboxPage(prev => Math.max(1, prev - 1))}
+                      disabled={outboxPage === 1}
+                      className={`px-3 py-1.5 rounded-lg border font-bold flex items-center gap-1 transition-all ${
+                        outboxPage === 1
+                          ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                          : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300 shadow-sm'
+                      }`}
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                      <span>Previous</span>
+                    </button>
+                    <span className="text-slate-700 font-mono font-bold px-2">
+                      Page {outboxPage} of {totalOutboxPages}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setOutboxPage(prev => Math.min(totalOutboxPages, prev + 1))}
+                      disabled={outboxPage === totalOutboxPages}
+                      className={`px-3 py-1.5 rounded-lg border font-bold flex items-center gap-1 transition-all ${
+                        outboxPage === totalOutboxPages
+                          ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                          : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300 shadow-sm'
+                      }`}
+                    >
+                      <span>Next</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1666,15 +1802,15 @@ export const AdminDashboard = () => {
                     Allow Student Practice Mode
                   </div>
                   <div className="text-[11px] text-slate-500">
-                    Allows students to toggle instant explanations during personal practice drills.
+                    Controls candidate access to the Test Exam (Practice Mode) button on student dashboards. When checked, candidates can click and take Test Exams; when unchecked, only the Full Mock Exam is available.
                   </div>
                 </div>
 
                 <input
                   type="checkbox"
-                  checked={tempSettings.allowStudentPracticeMode}
+                  checked={Boolean(tempSettings.allowStudentPracticeMode)}
                   onChange={(e) => setTempSettings({ ...tempSettings, allowStudentPracticeMode: e.target.checked })}
-                  className="w-5 h-5 accent-[#006633] rounded"
+                  className="w-5 h-5 accent-[#006633] rounded cursor-pointer"
                 />
               </div>
             </div>
@@ -1795,7 +1931,7 @@ export const AdminDashboard = () => {
                       </td>
                     </tr>
                   ) : (
-                    allExamSubmissions.map((sub, idx) => (
+                    paginatedResults.map((sub, idx) => (
                       <tr key={sub.id || idx} className="hover:bg-slate-50">
                         <td className="p-3 font-bold text-slate-900 uppercase">
                           {sub.candidateName || 'JAMB Candidate'}
@@ -1824,6 +1960,46 @@ export const AdminDashboard = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Results Log Pagination Bar */}
+            {totalResultsPages > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-200 text-xs">
+                <span className="text-slate-500 font-medium">
+                  Showing {(resultsPage - 1) * resultsPerPage + 1}–{Math.min(resultsPage * resultsPerPage, allExamSubmissions.length)} of {allExamSubmissions.length} submissions
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setResultsPage(prev => Math.max(1, prev - 1))}
+                    disabled={resultsPage === 1}
+                    className={`px-3 py-1.5 rounded-lg border font-bold flex items-center gap-1 transition-all ${
+                      resultsPage === 1
+                        ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                        : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300 shadow-sm'
+                    }`}
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    <span>Previous</span>
+                  </button>
+                  <span className="text-slate-700 font-mono font-bold px-2">
+                    Page {resultsPage} of {totalResultsPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setResultsPage(prev => Math.min(totalResultsPages, prev + 1))}
+                    disabled={resultsPage === totalResultsPages}
+                    className={`px-3 py-1.5 rounded-lg border font-bold flex items-center gap-1 transition-all ${
+                      resultsPage === totalResultsPages
+                        ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                        : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300 shadow-sm'
+                    }`}
+                  >
+                    <span>Next</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>
@@ -1895,7 +2071,14 @@ export const AdminDashboard = () => {
                 <div>Email: <span className="font-mono">{inspectTarget.email}</span></div>
                 <div>Phone: <span className="font-mono">{inspectTarget.phone || 'Not Specified'}</span></div>
                 <div>Gender: <strong>{inspectTarget.gender || 'Not Specified'}</strong> • DOB: <strong>{inspectTarget.dob || 'Not Specified'}</strong></div>
-                <div>Status: <strong className="uppercase text-emerald-800">{inspectTarget.status || 'Approved'}</strong></div>
+                <div>
+                  Status:{' '}
+                  {(inspectTarget.status === 'Suspended' || inspectTarget.malpracticeBlocked) ? (
+                    <span className="font-bold uppercase text-red-600 bg-red-100 px-2 py-0.5 rounded">Suspended (Malpractice Violation)</span>
+                  ) : (
+                    <strong className="uppercase text-emerald-800">{inspectTarget.status || 'Approved'}</strong>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1910,10 +2093,23 @@ export const AdminDashboard = () => {
               </div>
             </div>
 
-            <div className="flex justify-end pt-3 border-t">
+            <div className="flex items-center justify-between pt-3 border-t">
+              {(inspectTarget.status === 'Suspended' || inspectTarget.malpracticeBlocked) ? (
+                <button
+                  onClick={() => {
+                    approveCandidate(inspectTarget.id);
+                    setInspectTarget(prev => ({ ...prev, status: 'Approved', malpracticeBlocked: false }));
+                  }}
+                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Re-instate Candidate Clearance</span>
+                </button>
+              ) : <div />}
+
               <button
                 onClick={() => setInspectTarget(null)}
-                className="px-5 py-2 bg-slate-800 text-white rounded-lg text-xs font-bold"
+                className="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-bold"
               >
                 Close File
               </button>

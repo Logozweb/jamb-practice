@@ -1,23 +1,19 @@
 import React, { useState } from 'react';
 import { useExam } from '../context/ExamContext';
 import { AVAILABLE_SUBJECTS, FACULTY_COMBINATIONS } from '../data/subjects';
-import { BookOpen, User, Sparkles, Check, Clock, Award, ShieldAlert, Globe, ArrowLeft } from 'lucide-react';
+import { BookOpen, User, Sparkles, Check, ArrowLeft, Save } from 'lucide-react';
 
 export const SetupModal = () => {
   const {
-    candidate,
-    setCandidate,
+    currentUser,
+    updateCurrentUser,
     selectedSubjectIds,
     setSelectedSubjectIds,
-    examMode,
-    setExamMode,
-    examLength,
-    setExamLength,
-    setPhase,
-    apiSource
+    setPhase
   } = useExam();
 
   const [activeFacultyIndex, setActiveFacultyIndex] = useState(0);
+  const [saveToast, setSaveToast] = useState(false);
 
   const handleApplyPreset = (combination, index) => {
     setActiveFacultyIndex(index);
@@ -45,7 +41,22 @@ export const SetupModal = () => {
       alert("A valid JAMB candidate profile requires exactly 4 registered subjects. (Use of English is compulsory).");
       return;
     }
-    setPhase('instructions');
+    if (!selectedSubjectIds.includes('english')) {
+      alert("Use of English is compulsory for all candidates.");
+      return;
+    }
+    setSelectedSubjectIds([...selectedSubjectIds]);
+    if (currentUser) {
+      updateCurrentUser({
+        ...currentUser,
+        center: 'ONLINE JAMB CBT SIMULATION',
+        selectedSubjects: [...selectedSubjectIds]
+      });
+    }
+    setSaveToast(true);
+    setTimeout(() => {
+      setPhase('dashboard');
+    }, 400);
   };
 
   return (
@@ -67,10 +78,10 @@ export const SetupModal = () => {
                 JAMB Practice Platform
               </div>
               <h1 className="text-xl md:text-2xl font-black tracking-tight uppercase">
-                JAMB Simulation Platform
+                4-Subject Combination Manager
               </h1>
               <p className="text-xs text-emerald-100 mt-0.5">
-                Configure your 4-Subject Combination & Exam Simulation Settings
+                Customize your registered examination subjects for the 2026/2027 UTME CBT simulation.
               </p>
             </div>
           </div>
@@ -87,57 +98,32 @@ export const SetupModal = () => {
           <div>
             <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-800 flex items-center gap-2 mb-4">
               <User className="w-4 h-4 text-[#006633]" />
-              <span>1. Candidate Profile</span>
+              <span>1. Verified Candidate Profile</span>
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
-                  Candidate Full Name
-                </label>
-                <input
-                  type="text"
-                  value={candidate.name}
-                  onChange={(e) => setCandidate({ ...candidate, name: e.target.value.toUpperCase() })}
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 focus:border-[#006633] focus:ring-2 focus:ring-[#006633]/20 font-bold text-sm text-slate-900 uppercase"
-                  placeholder="e.g. OBI CHUKWUEMEKA EMMANUEL"
-                />
+                <span className="block text-[10px] font-bold text-slate-500 uppercase">Candidate Name</span>
+                <span className="text-xs font-black text-slate-900 uppercase truncate block">
+                  {currentUser?.name || 'JAMB CANDIDATE'}
+                </span>
               </div>
-
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
-                  Registration Number
-                </label>
-                <input
-                  type="text"
-                  value={candidate.regNumber}
-                  onChange={(e) => setCandidate({ ...candidate, regNumber: e.target.value.toUpperCase() })}
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 focus:border-[#006633] focus:ring-2 focus:ring-[#006633]/20 font-mono font-bold text-sm text-slate-900"
-                  placeholder="e.g. 202610482910EB"
-                />
+                <span className="block text-[10px] font-bold text-slate-500 uppercase">Registration No</span>
+                <span className="text-xs font-mono font-black text-slate-900 block">
+                  {currentUser?.regNumber || '202676081547EB'}
+                </span>
               </div>
-
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
-                  Examination Centre
-                </label>
-                <input
-                  type="text"
-                  value={candidate.center}
-                  onChange={(e) => setCandidate({ ...candidate, center: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 focus:border-[#006633] focus:ring-2 focus:ring-[#006633]/20 text-xs text-slate-900"
-                />
+                <span className="block text-[10px] font-bold text-slate-500 uppercase">Examination Centre</span>
+                <span className="text-xs font-bold text-[#006633] block">
+                  ONLINE JAMB CBT SIMULATION
+                </span>
               </div>
-
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
-                  Assigned Seat Number
-                </label>
-                <input
-                  type="text"
-                  value={candidate.seatNumber}
-                  onChange={(e) => setCandidate({ ...candidate, seatNumber: e.target.value.toUpperCase() })}
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 focus:border-[#006633] focus:ring-2 focus:ring-[#006633]/20 font-mono font-bold text-sm text-slate-900"
-                />
+                <span className="block text-[10px] font-bold text-slate-500 uppercase">Seat Number</span>
+                <span className="text-xs font-mono font-bold text-slate-800 block">
+                  {currentUser?.seatNumber || 'A-053'}
+                </span>
               </div>
             </div>
           </div>
@@ -223,108 +209,33 @@ export const SetupModal = () => {
               })}
             </div>
           </div>
-
-          {/* Section 3: Exam Mode & Test Duration */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-800 flex items-center gap-2 mb-3">
-                <Clock className="w-4 h-4 text-[#006633]" />
-                <span>3. Simulation Mode</span>
-              </h2>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => setExamMode('simulation')}
-                  className={`p-3.5 rounded-xl border-2 text-left transition-all ${
-                    examMode === 'simulation'
-                      ? 'bg-emerald-50 border-[#006633] text-slate-900 ring-2 ring-[#006633]/20'
-                      : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <div className="text-xs font-black uppercase text-[#006633] mb-1">
-                    🎯 Real JAMB Exam Mode
-                  </div>
-                  <div className="text-[11px] text-slate-600 leading-snug">
-                    Strict 2-hour countdown clock, no answers revealed during exam. True simulation.
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => setExamMode('practice')}
-                  className={`p-3.5 rounded-xl border-2 text-left transition-all ${
-                    examMode === 'practice'
-                      ? 'bg-emerald-50 border-[#006633] text-slate-900 ring-2 ring-[#006633]/20'
-                      : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <div className="text-xs font-black uppercase text-blue-700 mb-1">
-                    📖 Practice & Study Mode
-                  </div>
-                  <div className="text-[11px] text-slate-600 leading-snug">
-                    Instant answer checks, solution explanations for mistakes, untimed exploration.
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-800 flex items-center gap-2 mb-3">
-                <Award className="w-4 h-4 text-[#006633]" />
-                <span>4. Question Volume</span>
-              </h2>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => setExamLength('standard')}
-                  className={`p-3.5 rounded-xl border-2 text-left transition-all ${
-                    examLength === 'standard'
-                      ? 'bg-emerald-50 border-[#006633] text-slate-900 ring-2 ring-[#006633]/20'
-                      : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <div className="text-xs font-black uppercase text-[#006633] mb-1">
-                    Full UTME (180 Qs)
-                  </div>
-                  <div className="text-[11px] text-slate-600 leading-snug">
-                    60 English + 40 × 3 electives. Standard examination length (2 hours).
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => setExamLength('quick')}
-                  className={`p-3.5 rounded-xl border-2 text-left transition-all ${
-                    examLength === 'quick'
-                      ? 'bg-emerald-50 border-[#006633] text-slate-900 ring-2 ring-[#006633]/20'
-                      : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <div className="text-xs font-black uppercase text-blue-700 mb-1">
-                    Quick Sprint (45 Qs)
-                  </div>
-                  <div className="text-[11px] text-slate-600 leading-snug">
-                    15 English + 10 × 3 electives. Ideal for fast speed and drill revisions.
-                  </div>
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
 
-        {/* Footer Proceed Button */}
+        {/* Footer Action Buttons */}
         <div className="bg-slate-100 p-6 border-t border-slate-300 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <button
-            type="button"
-            onClick={() => setPhase('dashboard')}
-            className="text-xs font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1.5"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Return to Candidate Dashboard</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setPhase('dashboard')}
+              className="text-xs font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1.5"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Cancel & Return to Dashboard</span>
+            </button>
+            {saveToast && (
+              <span className="text-xs font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-md flex items-center gap-1">
+                <Check className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Saved!</span>
+              </span>
+            )}
+          </div>
 
           <button
             onClick={handleProceed}
             className="w-full sm:w-auto px-8 py-3.5 bg-[#006633] hover:bg-[#00552b] text-white font-black text-sm uppercase tracking-wider rounded-xl shadow-lg hover:shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
           >
-            <span>Proceed to Examination Hall</span>
-            <span>→</span>
+            <Save className="w-4 h-4" />
+            <span>Save Combination & Return to Dashboard</span>
           </button>
         </div>
       </div>

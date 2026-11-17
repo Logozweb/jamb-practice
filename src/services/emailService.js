@@ -8,6 +8,8 @@
  * 4. Database-backed OTP generation, expiration, and multi-attempt verification
  */
 
+import { getAdminAuthHeaders } from './dbService';
+
 const STORAGE_KEY_SETTINGS = 'jamb_email_settings';
 const STORAGE_KEY_OUTBOX = 'jamb_otp_outbox';
 
@@ -57,7 +59,9 @@ export const getEmailSettings = () => {
 // Async getter from SQLite Database
 export const fetchEmailSettings = async () => {
   try {
-    const res = await fetch('/api/email-settings');
+    const res = await fetch('/api/email-settings', {
+      headers: { ...getAdminAuthHeaders() }
+    });
     if (res.ok) {
       const data = await res.json();
       cachedEmailSettings = { ...DEFAULT_EMAIL_SETTINGS, ...data };
@@ -77,7 +81,7 @@ export const saveEmailSettings = async (settings) => {
     localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(cachedEmailSettings));
     const res = await fetch('/api/email-settings', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
       body: JSON.stringify(cachedEmailSettings)
     });
     if (res.ok) {
@@ -92,7 +96,9 @@ export const saveEmailSettings = async (settings) => {
 // Outbox Logs from SQLite Database
 export const fetchOtpOutboxLogs = async (limit = 100) => {
   try {
-    const res = await fetch(`/api/email-outbox?limit=${limit}`);
+    const res = await fetch(`/api/email-outbox?limit=${limit}`, {
+      headers: { ...getAdminAuthHeaders() }
+    });
     if (res.ok) {
       const logs = await res.json();
       localStorage.setItem(STORAGE_KEY_OUTBOX, JSON.stringify(logs));
@@ -115,7 +121,10 @@ export const getOtpOutboxLogs = () => {
 export const clearOutboxLogs = async () => {
   try {
     localStorage.removeItem(STORAGE_KEY_OUTBOX);
-    await fetch('/api/email-outbox', { method: 'DELETE' });
+    await fetch('/api/email-outbox', {
+      method: 'DELETE',
+      headers: { ...getAdminAuthHeaders() }
+    });
     return true;
   } catch (e) {
     return false;

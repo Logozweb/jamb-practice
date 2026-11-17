@@ -1,12 +1,27 @@
 /**
  * JAMB Practice Platform Database Service
  * Connects frontend state directly to the server-side SQLite persistent database (/api/*)
- * with transparent offline/localStorage caching.
+ * with transparent offline/localStorage caching and secure Admin Bearer token authorization.
  */
+
+export function getAdminToken() {
+  try {
+    return localStorage.getItem('jamb_admin_token') || sessionStorage.getItem('jamb_admin_token') || '';
+  } catch {
+    return '';
+  }
+}
+
+export function getAdminAuthHeaders() {
+  const token = getAdminToken();
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+}
 
 export async function apiGetCandidates() {
   try {
-    const res = await fetch('/api/candidates');
+    const res = await fetch('/api/candidates', {
+      headers: { ...getAdminAuthHeaders() }
+    });
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data)) {
@@ -29,7 +44,7 @@ export async function apiSaveCandidate(candidateData) {
   try {
     const res = await fetch('/api/candidates', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
       body: JSON.stringify(candidateData)
     });
     if (res.ok) {
@@ -46,7 +61,7 @@ export async function apiUpdateCandidate(id, updates) {
   try {
     const res = await fetch(`/api/candidates/${encodeURIComponent(id)}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
       body: JSON.stringify(updates)
     });
     if (res.ok) {
@@ -61,7 +76,8 @@ export async function apiUpdateCandidate(id, updates) {
 export async function apiDeleteCandidate(id) {
   try {
     const res = await fetch(`/api/candidates/${encodeURIComponent(id)}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: { ...getAdminAuthHeaders() }
     });
     return res.ok;
   } catch (err) {
@@ -124,7 +140,7 @@ export async function apiSavePlatformSettings(settings) {
   try {
     const res = await fetch('/api/settings', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
       body: JSON.stringify(settings)
     });
     return res.ok;
@@ -136,7 +152,9 @@ export async function apiSavePlatformSettings(settings) {
 
 export async function apiGetAdmins() {
   try {
-    const res = await fetch('/api/admins');
+    const res = await fetch('/api/admins', {
+      headers: { ...getAdminAuthHeaders() }
+    });
     if (res.ok) return await res.json();
   } catch (err) {
     console.warn('API get admins failed:', err);
@@ -151,17 +169,35 @@ export async function apiLoginAdmin(email, password) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
     });
-    return await res.json();
+    const data = await res.json();
+    if (data.success && data.token) {
+      try {
+        localStorage.setItem('jamb_admin_token', data.token);
+      } catch (e) {}
+    }
+    return data;
   } catch (err) {
     return { success: false, error: 'Database network connection error.' };
   }
+}
+
+export async function apiLogoutAdmin() {
+  try {
+    await fetch('/api/auth/admin/logout', {
+      method: 'POST',
+      headers: { ...getAdminAuthHeaders() }
+    });
+  } catch (e) {}
+  try {
+    localStorage.removeItem('jamb_admin_token');
+  } catch (e) {}
 }
 
 export async function apiUpdateAdminPassword(email, newPassword) {
   try {
     const res = await fetch('/api/admins/password', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
       body: JSON.stringify({ email, newPassword })
     });
     return res.ok;

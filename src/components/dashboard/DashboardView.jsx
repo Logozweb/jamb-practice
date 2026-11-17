@@ -34,33 +34,29 @@ export const DashboardView = () => {
     logout,
     setPhase,
     startExam,
+    setExamMode,
     setExamLength,
     updateCandidatePhoto,
     examSettings,
-    setIsDisclaimerOpen
+    setIsDisclaimerOpen,
+    finalResult,
+    setFinalResult
   } = useExam();
 
   const fileInputRef = useRef(null);
   const [photoError, setPhotoError] = useState('');
   const [photoSuccess, setPhotoSuccess] = useState(false);
   const [isChoicesModalOpen, setIsChoicesModalOpen] = useState(false);
+  const [mobileActiveMode, setMobileActiveMode] = useState('simulation_standard');
 
   if (!currentUser) return null;
 
-  const handleLaunchFullCbt = () => {
-    if (status === 'Pending') {
-      alert('Access Restricted: Your candidate registration is currently awaiting platform administrator approval. Examination features are locked until an administrator approves your registration.');
+  const handleStartExamMode = (mode, length) => {
+    if (status === 'Suspended' || currentUser.malpracticeBlocked) {
+      alert('EXAMINATION ACCESS BLOCKED:\nYour account has been suspended for examination malpractice due to repeated navigation / fullscreen violations.\n\nYou cannot sit for or start any examination until a Platform Administrator reviews and reinstates your account clearance.');
       return;
     }
-    if (status === 'Disapproved') {
-      alert(`Access Blocked: Your registration was disapproved. Reason: ${currentUser.disapprovalReason || 'Verification failed.'}`);
-      return;
-    }
-    setExamLength('standard');
-    setPhase('instructions');
-  };
 
-  const handleLaunchTestExam = () => {
     if (status === 'Pending') {
       alert('Access Restricted: Your candidate registration is currently awaiting platform administrator approval. Examination features are locked until an administrator approves your registration.');
       return;
@@ -69,7 +65,13 @@ export const DashboardView = () => {
       alert(`Access Blocked: Your registration was disapproved. Reason: ${currentUser.disapprovalReason || 'Verification failed.'}`);
       return;
     }
-    setExamLength('quick');
+    const isFullMock = mode === 'simulation' && length === 'standard';
+    if (!isFullMock && !examSettings?.allowStudentPracticeMode) {
+      alert('Practice Mode Disabled: Practice & Test examination modes are currently disabled by the administrator under CBT Rules. Candidates may only sit for the Full Mock Examination.');
+      return;
+    }
+    setExamMode(mode);
+    setExamLength(length);
     setPhase('instructions');
   };
 
@@ -94,10 +96,28 @@ export const DashboardView = () => {
       alert('Mock Results Service Locked: Access to test scoring records is locked while your account status is Pending.');
       return;
     }
-    if (currentUser.examHistory?.length > 0) {
+    const hasHistory = (currentUser.examHistory && currentUser.examHistory.length > 0) || finalResult;
+    if (hasHistory) {
+      if (!finalResult && currentUser.examHistory?.length > 0) {
+        const latest = currentUser.examHistory[0];
+        const reconstructed = {
+          candidate: currentUser,
+          completedAt: latest.dateTaken || latest.date || new Date().toISOString(),
+          timeSpentSeconds: latest.timeSpentSeconds || 0,
+          aggregateScore: latest.aggregateScore || 0,
+          subjectBreakdown: latest.subjectBreakdown || [],
+          totalQuestionsCount: (latest.subjectBreakdown || []).reduce((sum, b) => sum + (b.totalQuestions || 0), 0),
+          totalRawCorrect: (latest.subjectBreakdown || []).reduce((sum, b) => sum + (b.correctCount || 0), 0),
+          examData: latest.examData || {}
+        };
+        setFinalResult(reconstructed);
+        try {
+          localStorage.setItem('jamb_final_result', JSON.stringify(reconstructed));
+        } catch (e) {}
+      }
       setPhase('result');
     } else {
-      alert("You have not taken any mock examination yet. Click 'Launch CBT Exam Simulation' to start!");
+      alert("You have not taken any mock examination yet. Click 'Full Mock' to start!");
     }
   };
 
@@ -135,9 +155,9 @@ export const DashboardView = () => {
     <div className="min-h-screen bg-[#F0F2F5] flex flex-col">
       {/* Top Navbar */}
       <header className="bg-[#004d25] text-white border-b-4 border-amber-400 sticky top-0 z-20 shadow-md">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-white p-1 flex items-center justify-center border-2 border-amber-400 shadow">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white p-1 flex items-center justify-center border-2 border-amber-400 shadow flex-shrink-0">
               <svg viewBox="0 0 100 100" className="w-full h-full">
                 <circle cx="50" cy="50" r="45" fill="#006633" stroke="#FFB800" strokeWidth="4" />
                 <path d="M50 15 L58 35 L80 38 L63 52 L68 74 L50 62 L32 74 L37 52 L20 38 L42 35 Z" fill="#FFB800" />
@@ -146,16 +166,16 @@ export const DashboardView = () => {
               </svg>
             </div>
             <div>
-              <div className="text-[10px] uppercase font-bold tracking-widest text-amber-300">
+              <div className="text-[9px] sm:text-[10px] uppercase font-bold tracking-widest text-amber-300 leading-none">
                 JAMB Practice Platform
               </div>
-              <div className="text-sm sm:text-base font-black tracking-tight uppercase">
-                Candidate CBT Simulation Dashboard
+              <div className="text-xs sm:text-base font-black tracking-tight uppercase leading-snug">
+                Candidate CBT Dashboard
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <div className="hidden sm:flex flex-col text-right">
               <span className="text-xs font-bold uppercase">{currentUser.name}</span>
               <span className="text-[10px] text-emerald-200 font-mono">Reg: {currentUser.regNumber}</span>
@@ -163,11 +183,11 @@ export const DashboardView = () => {
 
             <button
               onClick={logout}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-700/80 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all border border-red-500/50"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-red-700/80 hover:bg-red-700 text-white rounded-lg text-[11px] sm:text-xs font-bold transition-all border border-red-500/50"
               title="Sign Out"
             >
               <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Sign Out</span>
+              <span>Sign Out</span>
             </button>
           </div>
         </div>
@@ -175,6 +195,35 @@ export const DashboardView = () => {
 
       {/* Main Container */}
       <main className="max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6 flex-1">
+        {/* Candidate Suspended Notice if Suspended for Malpractice */}
+        {(status === 'Suspended' || currentUser.malpracticeBlocked) && (
+          <div className="bg-red-50 border-2 border-red-500 rounded-2xl p-4 sm:p-5 shadow-md flex items-start gap-4 animate-in fade-in">
+            <div className="w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center flex-shrink-0 shadow">
+              <ShieldAlert className="w-6 h-6 animate-bounce" />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider bg-red-200 text-red-900 px-2.5 py-0.5 rounded-full border border-red-300">
+                  Account Suspended
+                </span>
+                <span className="text-xs font-black text-red-950 uppercase">
+                  Anti-Malpractice Security Protocol
+                </span>
+              </div>
+              <h3 className="text-sm sm:text-base font-black text-red-950 mt-1">
+                Candidate Barred: Multiple Examination Navigation Violations
+              </h3>
+              <p className="text-xs text-red-900 mt-1 leading-relaxed">
+                Your examination session was terminated and your account locked due to repeated tab switching, window minimization, or exiting fullscreen mode during an active examination.
+              </p>
+              <div className="mt-2 text-[11px] font-bold text-red-900 flex items-center gap-1.5 bg-red-100/90 p-2.5 rounded-lg border border-red-300">
+                <Lock className="w-3.5 h-3.5 text-red-700 flex-shrink-0" />
+                <span>You are strictly barred from sitting for any examination until a Platform Administrator reviews your case and clears your account.</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Candidate Pending Approval Notice if Pending */}
         {status === 'Pending' && (
           <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 sm:p-5 shadow-sm flex items-start gap-4 animate-in fade-in">
@@ -256,12 +305,14 @@ export const DashboardView = () => {
               </button>
               <div
                 className={`absolute -bottom-1 -right-1 rounded-full p-1 border-2 border-white shadow ${
-                  status === 'Approved' ? 'bg-green-600' : status === 'Pending' ? 'bg-amber-500' : 'bg-rose-600'
+                  status === 'Approved' ? 'bg-green-600' : (status === 'Suspended' || currentUser.malpracticeBlocked) ? 'bg-red-600' : status === 'Pending' ? 'bg-amber-500' : 'bg-rose-600'
                 }`}
-                title={`Biometric Status: ${status}`}
+                title={`Biometric Status: ${status === 'Suspended' || currentUser.malpracticeBlocked ? 'Suspended (Malpractice)' : status}`}
               >
                 {status === 'Approved' ? (
                   <ShieldCheck className="w-3.5 h-3.5 text-white" />
+                ) : (status === 'Suspended' || currentUser.malpracticeBlocked) ? (
+                  <ShieldAlert className="w-3.5 h-3.5 text-white" />
                 ) : status === 'Pending' ? (
                   <Clock className="w-3.5 h-3.5 text-white" />
                 ) : (
@@ -286,15 +337,18 @@ export const DashboardView = () => {
 
                 {/* Candidate Approval Status Pill */}
                 <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase border ${
-                  status === 'Approved'
+                  (status === 'Suspended' || currentUser.malpracticeBlocked)
+                    ? 'bg-red-100 text-red-900 border-red-300'
+                    : status === 'Approved'
                     ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
                     : status === 'Pending'
                     ? 'bg-amber-50 text-amber-800 border-amber-300'
                     : 'bg-rose-50 text-rose-800 border-rose-300'
                 }`}>
-                  {status === 'Approved' && '✓ Approved to Sit'}
-                  {status === 'Pending' && '⏳ Approval Pending'}
-                  {status === 'Disapproved' && '✕ Disapproved'}
+                  {(status === 'Suspended' || currentUser.malpracticeBlocked) && '🚨 Suspended (Malpractice)'}
+                  {status === 'Approved' && !currentUser.malpracticeBlocked && '✓ Approved to Sit'}
+                  {status === 'Pending' && !currentUser.malpracticeBlocked && '⏳ Approval Pending'}
+                  {status === 'Disapproved' && !currentUser.malpracticeBlocked && '✕ Disapproved'}
                 </span>
               </div>
 
@@ -341,201 +395,462 @@ export const DashboardView = () => {
           </div>
         </div>
 
-        {/* Primary Action Hero: Launch CBT Simulator */}
-        <div className="bg-gradient-to-r from-[#004d25] to-[#006633] rounded-2xl text-white p-6 sm:p-8 shadow-xl relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-6 border-2 border-amber-400">
-          <div className="space-y-2 text-center lg:text-left z-10">
-            <span className="text-[11px] font-bold tracking-widest uppercase text-amber-300 bg-white/10 px-3 py-1 rounded-full border border-white/20">
-              JAMB Practice Platform Engine
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tight">
-              Ready to Sit for Your UTME CBT Exam?
-            </h2>
-            <p className="text-xs sm:text-sm text-emerald-100 max-w-xl leading-relaxed">
-              Experience the identical 4-subject exam environment with the real 2-hour unified clock, standard 8-key keyboard navigation (A, B, C, D, P, N, S, R), onscreen calculator, comprehension passages, and instant scaled JAMB scoring out of 400 marks.
-            </p>
+        {/* Primary Action Hero: 4 Examination & Practice Modes */}
+        <div className="bg-gradient-to-r from-[#004d25] to-[#006633] rounded-2xl text-white p-6 sm:p-8 shadow-xl relative overflow-hidden flex flex-col gap-6 border-2 border-amber-400">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 z-10 border-b border-white/10 pb-4">
+            <div className="space-y-1">
+              <span className="text-[11px] font-bold tracking-widest uppercase text-amber-300 bg-white/10 px-3 py-1 rounded-full border border-white/20">
+                JAMB UTME Simulation Engine
+              </span>
+              <h2 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white mt-1">
+                Choose Examination or Practice Mode
+              </h2>
+              <p className="text-xs sm:text-sm text-emerald-100 max-w-2xl leading-relaxed">
+                Select your preferred mode below. <strong>Official Notice:</strong> Only the <span className="text-amber-300 font-bold">Full Mock Exam (180 Qs)</span> is officially recorded in the platform's Central Admin Score Log.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 self-start md:self-auto flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => setPhase('setup')}
+                className="px-3.5 py-2 bg-white/15 hover:bg-white/25 text-amber-300 hover:text-white rounded-lg border border-amber-400/40 text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5"
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>Change Combination</span>
+              </button>
+            </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto z-10">
-            {/* 15 Questions per Subject Test Exam */}
+          {/* Mobile Mode Switcher Tabs (< md) */}
+          <div className="flex md:hidden items-center gap-1 bg-black/25 p-1 rounded-xl border border-white/15 overflow-x-auto z-10 scrollbar-none">
             <button
-              onClick={handleLaunchTestExam}
-              disabled={status !== 'Approved'}
-              className={`w-full sm:w-auto px-6 py-3.5 font-black text-xs sm:text-sm uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center justify-center gap-2 border-2 ${
-                status !== 'Approved'
-                  ? 'bg-white/10 border-white/20 text-white/50 cursor-not-allowed shadow-none'
-                  : 'bg-white hover:bg-emerald-50 text-[#006633] border-white hover:shadow-xl active:scale-95'
+              type="button"
+              onClick={() => setMobileActiveMode('simulation_standard')}
+              className={`flex-1 py-1.5 px-2.5 rounded-lg text-[11px] font-black uppercase transition-all whitespace-nowrap text-center ${
+                mobileActiveMode === 'simulation_standard'
+                  ? 'bg-amber-400 text-slate-950 shadow-md'
+                  : 'text-emerald-100 hover:text-white'
               }`}
             >
-              <Sparkles className="w-4 h-4 text-amber-500" />
-              <span>Take Test Exam (15 Qs/Subject)</span>
+              🎯 Full Mock
             </button>
+            <button
+              type="button"
+              onClick={() => setMobileActiveMode('practice_standard')}
+              className={`flex-1 py-1.5 px-2.5 rounded-lg text-[11px] font-black uppercase transition-all whitespace-nowrap text-center ${
+                mobileActiveMode === 'practice_standard'
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'text-emerald-100 hover:text-white'
+              }`}
+            >
+              📖 Practice
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileActiveMode('simulation_quick')}
+              className={`flex-1 py-1.5 px-2.5 rounded-lg text-[11px] font-black uppercase transition-all whitespace-nowrap text-center ${
+                mobileActiveMode === 'simulation_quick'
+                  ? 'bg-emerald-600 text-white shadow-md'
+                  : 'text-emerald-100 hover:text-white'
+              }`}
+            >
+              ⏱️ Quick Test
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileActiveMode('practice_quick')}
+              className={`flex-1 py-1.5 px-2.5 rounded-lg text-[11px] font-black uppercase transition-all whitespace-nowrap text-center ${
+                mobileActiveMode === 'practice_quick'
+                  ? 'bg-purple-600 text-white shadow-md'
+                  : 'text-emerald-100 hover:text-white'
+              }`}
+            >
+              💡 Drill
+            </button>
+          </div>
 
-            {/* Standard 180 Questions Mock Exam */}
-            <button
-              onClick={handleLaunchFullCbt}
-              disabled={status !== 'Approved'}
-              className={`w-full sm:w-auto px-7 py-3.5 font-black text-xs sm:text-sm uppercase tracking-wider rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 ${
-                status === 'Pending'
-                  ? 'bg-slate-300 text-slate-700 cursor-not-allowed shadow-none'
-                  : status === 'Disapproved'
-                  ? 'bg-rose-300 text-rose-900 cursor-not-allowed shadow-none'
-                  : 'bg-amber-400 hover:bg-amber-300 text-slate-950 hover:shadow-xl active:scale-95'
-              }`}
-            >
-              {status !== 'Approved' ? (
-                <>
-                  <Lock className="w-4 h-4 text-slate-600" />
-                  <span>{status === 'Pending' ? 'Sitting Locked' : 'Sitting Blocked'}</span>
-                </>
-              ) : (
-                <>
-                  <span>Full Mock (180 Qs)</span>
-                  <ArrowRight className="w-4 h-4 stroke-[3]" />
-                </>
-              )}
-            </button>
+          {/* 4 Exam Modes Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 z-10">
+            {/* Mode 1: Full Mock Exam (180 Qs - Simulation) */}
+            <div className={`bg-white text-slate-900 rounded-xl p-4 sm:p-5 flex-col justify-between border-2 border-amber-400 shadow-lg relative group hover:shadow-2xl transition-all ${
+              mobileActiveMode === 'simulation_standard' ? 'flex' : 'hidden md:flex'
+            }`}>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full border border-amber-300">
+                    Official UTME
+                  </span>
+                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    Logged to Admin
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-base font-black uppercase text-[#006633] flex items-center gap-1.5">
+                    <span>🎯 Full Mock Exam</span>
+                  </h3>
+                  <div className="text-[11px] font-mono font-bold text-slate-500">
+                    180 Questions • 120 Mins
+                  </div>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Strict 2-hour unified clock, authentic 8-key shortcuts, no answers revealed during exam. Scaled scoring out of 400 marks.
+                </p>
+              </div>
+
+              <div className="pt-4 mt-2 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => handleStartExamMode('simulation', 'standard')}
+                  disabled={status !== 'Approved'}
+                  className={`w-full py-2.5 px-3 rounded-lg font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
+                    status !== 'Approved'
+                      ? 'bg-slate-300 text-slate-600 cursor-not-allowed'
+                      : 'bg-amber-400 hover:bg-amber-300 text-slate-950 shadow hover:shadow-md active:scale-95'
+                  }`}
+                >
+                  {status !== 'Approved' ? (
+                    <>
+                      <Lock className="w-3.5 h-3.5 text-slate-600" />
+                      <span>{(status === 'Suspended' || currentUser.malpracticeBlocked) ? 'Barred (Malpractice)' : status === 'Pending' ? 'Approval Pending' : 'Disapproved'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Sit Full Mock</span>
+                      <ArrowRight className="w-3.5 h-3.5 stroke-[3]" />
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Mode 2: Practice & Study Mode (180 Qs) */}
+            <div className={`rounded-xl p-4 sm:p-5 flex-col justify-between border transition-all ${
+              !examSettings?.allowStudentPracticeMode || status !== 'Approved'
+                ? 'bg-white/80 border-slate-300 opacity-75'
+                : 'bg-white text-slate-900 border-white hover:shadow-xl'
+            } ${mobileActiveMode === 'practice_standard' ? 'flex' : 'hidden md:flex'}`}>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider bg-blue-100 text-blue-900 px-2 py-0.5 rounded-full">
+                    Study Mode
+                  </span>
+                  <span className="text-[10px] font-bold text-slate-500">
+                    Not Logged
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-base font-black uppercase text-blue-800 flex items-center gap-1.5">
+                    <span>📖 Full Practice</span>
+                  </h3>
+                  <div className="text-[11px] font-mono font-bold text-slate-500">
+                    180 Questions • Self-Paced
+                  </div>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Full 180 questions with instant answer reveal and comprehensive step-by-step solution explanations for every question.
+                </p>
+              </div>
+
+              <div className="pt-4 mt-2 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => handleStartExamMode('practice', 'standard')}
+                  disabled={status !== 'Approved' || !examSettings?.allowStudentPracticeMode}
+                  className={`w-full py-2.5 px-3 rounded-lg font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
+                    status !== 'Approved' || !examSettings?.allowStudentPracticeMode
+                      ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white shadow hover:shadow-md active:scale-95'
+                  }`}
+                >
+                  {status !== 'Approved' || !examSettings?.allowStudentPracticeMode ? (
+                    <>
+                      <Lock className="w-3.5 h-3.5 text-slate-500" />
+                      <span>
+                        {(status === 'Suspended' || currentUser.malpracticeBlocked)
+                          ? 'Barred (Malpractice)'
+                          : !examSettings?.allowStudentPracticeMode
+                          ? 'Disabled by Admin'
+                          : status === 'Pending'
+                          ? 'Approval Pending'
+                          : 'Disapproved'}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Start Full Practice</span>
+                      <ArrowRight className="w-3.5 h-3.5 stroke-[3]" />
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Mode 3: Quick Sprint Test (45 Qs - Timed Test) */}
+            <div className={`rounded-xl p-4 sm:p-5 flex-col justify-between border transition-all ${
+              !examSettings?.allowStudentPracticeMode || status !== 'Approved'
+                ? 'bg-white/80 border-slate-300 opacity-75'
+                : 'bg-white text-slate-900 border-white hover:shadow-xl'
+            } ${mobileActiveMode === 'simulation_quick' ? 'flex' : 'hidden md:flex'}`}>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-[#006633] px-2 py-0.5 rounded-full">
+                    Sprint Drill
+                  </span>
+                  <span className="text-[10px] font-bold text-slate-500">
+                    Not Logged
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-base font-black uppercase text-slate-900 flex items-center gap-1.5">
+                    <span>⏱️ Quick Sprint Test</span>
+                  </h3>
+                  <div className="text-[11px] font-mono font-bold text-slate-500">
+                    45 Questions • 45 Mins
+                  </div>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Fast 45-question timed simulation (15 English + 10 × 3 electives). Ideal for speed and quick exam-day testing drills.
+                </p>
+              </div>
+
+              <div className="pt-4 mt-2 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => handleStartExamMode('simulation', 'quick')}
+                  disabled={status !== 'Approved' || !examSettings?.allowStudentPracticeMode}
+                  className={`w-full py-2.5 px-3 rounded-lg font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
+                    status !== 'Approved' || !examSettings?.allowStudentPracticeMode
+                      ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                      : 'bg-emerald-700 hover:bg-emerald-800 text-white shadow hover:shadow-md active:scale-95'
+                  }`}
+                >
+                  {status !== 'Approved' || !examSettings?.allowStudentPracticeMode ? (
+                    <>
+                      <Lock className="w-3.5 h-3.5 text-slate-500" />
+                      <span>
+                        {(status === 'Suspended' || currentUser.malpracticeBlocked)
+                          ? 'Barred (Malpractice)'
+                          : !examSettings?.allowStudentPracticeMode
+                          ? 'Disabled by Admin'
+                          : status === 'Pending'
+                          ? 'Approval Pending'
+                          : 'Disapproved'}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Start Quick Test</span>
+                      <ArrowRight className="w-3.5 h-3.5 stroke-[3]" />
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Mode 4: Quick Sprint Practice (45 Qs - Study Drill) */}
+            <div className={`rounded-xl p-4 sm:p-5 flex-col justify-between border transition-all ${
+              !examSettings?.allowStudentPracticeMode || status !== 'Approved'
+                ? 'bg-white/80 border-slate-300 opacity-75'
+                : 'bg-white text-slate-900 border-white hover:shadow-xl'
+            } ${mobileActiveMode === 'practice_quick' ? 'flex' : 'hidden md:flex'}`}>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-900 px-2 py-0.5 rounded-full">
+                    Rapid Revision
+                  </span>
+                  <span className="text-[10px] font-bold text-slate-500">
+                    Not Logged
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-base font-black uppercase text-purple-900 flex items-center gap-1.5">
+                    <span>💡 Quick Practice Drill</span>
+                  </h3>
+                  <div className="text-[11px] font-mono font-bold text-slate-500">
+                    45 Questions • Instant Explanations
+                  </div>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Fast 45-question practice with instant solution explanations and answer checks on every question for rapid daily revision.
+                </p>
+              </div>
+
+              <div className="pt-4 mt-2 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => handleStartExamMode('practice', 'quick')}
+                  disabled={status !== 'Approved' || !examSettings?.allowStudentPracticeMode}
+                  className={`w-full py-2.5 px-3 rounded-lg font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
+                    status !== 'Approved' || !examSettings?.allowStudentPracticeMode
+                      ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                      : 'bg-purple-700 hover:bg-purple-800 text-white shadow hover:shadow-md active:scale-95'
+                  }`}
+                >
+                  {status !== 'Approved' || !examSettings?.allowStudentPracticeMode ? (
+                    <>
+                      <Lock className="w-3.5 h-3.5 text-slate-500" />
+                      <span>
+                        {(status === 'Suspended' || currentUser.malpracticeBlocked)
+                          ? 'Barred (Malpractice)'
+                          : !examSettings?.allowStudentPracticeMode
+                          ? 'Disabled by Admin'
+                          : status === 'Pending'
+                          ? 'Approval Pending'
+                          : 'Disapproved'}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Start Quick Practice</span>
+                      <ArrowRight className="w-3.5 h-3.5 stroke-[3]" />
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Core JAMB Service Cards */}
         <div>
-          <h2 className="text-xs font-black uppercase tracking-wider text-slate-500 mb-3">
+          <h2 className="text-xs font-black uppercase tracking-wider text-slate-500 mb-2.5">
             Candidate Practice Services
           </h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
             {/* Card 1: Print Registration e-Slip */}
             <div
               onClick={handleOpenSlip}
-              className={`bg-white p-5 rounded-xl border shadow-sm transition-all cursor-pointer group flex flex-col justify-between ${
+              className={`bg-white p-3 sm:p-5 rounded-xl border shadow-sm transition-all cursor-pointer group flex flex-col justify-between ${
                 status === 'Approved' ? 'border-slate-300 hover:shadow-md hover:border-[#006633]' : 'border-amber-200 bg-amber-50/20'
               }`}
             >
               <div>
-                <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                  <Printer className="w-5 h-5" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-110 transition-transform">
+                  <Printer className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
-                <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-sm text-slate-900 uppercase">
-                    Print Registration Slip
+                <div className="flex items-start sm:items-center justify-between gap-1">
+                  <h3 className="font-bold text-xs sm:text-sm text-slate-900 uppercase leading-snug">
+                    Registration Slip
                   </h3>
                   {status !== 'Approved' && (
-                    <span className="text-[10px] bg-amber-100 text-amber-900 font-bold px-1.5 py-0.5 rounded flex items-center gap-1">
-                      <Lock className="w-3 h-3 text-amber-700" />
+                    <span className="text-[9px] sm:text-[10px] bg-amber-100 text-amber-900 font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
+                      <Lock className="w-2.5 h-2.5 text-amber-700" />
                       <span>Locked</span>
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="hidden sm:block text-xs text-slate-500 mt-1">
                   View and print your candidate practice examination slip with center and seat details.
                 </p>
               </div>
-              <span className={`text-xs font-bold mt-4 flex items-center gap-1 ${
+              <span className={`text-[11px] sm:text-xs font-bold mt-2 sm:mt-4 flex items-center gap-1 ${
                 status === 'Approved' ? 'text-[#006633]' : 'text-amber-800'
               }`}>
-                <span>{status === 'Approved' ? 'View Slip →' : 'Locked (Pending Approval)'}</span>
+                <span>{status === 'Approved' ? 'View Slip →' : 'Locked'}</span>
               </span>
             </div>
 
             {/* Card 2: JAMB CAPS Admission Portal */}
             <div
               onClick={handleOpenCaps}
-              className={`bg-white p-5 rounded-xl border shadow-sm transition-all cursor-pointer group flex flex-col justify-between ${
+              className={`bg-white p-3 sm:p-5 rounded-xl border shadow-sm transition-all cursor-pointer group flex flex-col justify-between ${
                 status === 'Approved' ? 'border-slate-300 hover:shadow-md hover:border-[#006633]' : 'border-slate-200 opacity-80'
               }`}
             >
               <div>
-                <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                  <GraduationCap className="w-5 h-5" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-110 transition-transform">
+                  <GraduationCap className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
-                <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-sm text-slate-900 uppercase">
-                    JAMB CAPS Portal
+                <div className="flex items-start sm:items-center justify-between gap-1">
+                  <h3 className="font-bold text-xs sm:text-sm text-slate-900 uppercase leading-snug">
+                    CAPS Portal
                   </h3>
                   {status !== 'Approved' && (
-                    <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-1.5 py-0.5 rounded flex items-center gap-1">
-                      <Lock className="w-3 h-3 text-slate-500" />
+                    <span className="text-[9px] sm:text-[10px] bg-slate-100 text-slate-600 font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
+                      <Lock className="w-2.5 h-2.5 text-slate-500" />
                       <span>Locked</span>
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="hidden sm:block text-xs text-slate-500 mt-1">
                   Check admission status, accept or reject institutional admission offers on Central Processing.
                 </p>
               </div>
-              <span className={`text-xs font-bold mt-4 flex items-center gap-1 ${
+              <span className={`text-[11px] sm:text-xs font-bold mt-2 sm:mt-4 flex items-center gap-1 ${
                 status === 'Approved' ? 'text-blue-700' : 'text-slate-500'
               }`}>
-                <span>{status === 'Approved' ? 'Access CAPS →' : 'Locked (Pending Approval)'}</span>
+                <span>{status === 'Approved' ? 'Access CAPS →' : 'Locked'}</span>
               </span>
             </div>
 
             {/* Card 3: Result Notification Slip */}
             <div
               onClick={handleOpenResults}
-              className={`bg-white p-5 rounded-xl border shadow-sm transition-all cursor-pointer group flex flex-col justify-between ${
+              className={`bg-white p-3 sm:p-5 rounded-xl border shadow-sm transition-all cursor-pointer group flex flex-col justify-between ${
                 status === 'Approved' ? 'border-slate-300 hover:shadow-md hover:border-[#006633]' : 'border-slate-200 opacity-80'
               }`}
             >
               <div>
-                <div className="w-10 h-10 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                  <Award className="w-5 h-5" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-110 transition-transform">
+                  <Award className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
-                <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-sm text-slate-900 uppercase">
-                    Check Mock Results
+                <div className="flex items-start sm:items-center justify-between gap-1">
+                  <h3 className="font-bold text-xs sm:text-sm text-slate-900 uppercase leading-snug">
+                    Check Results
                   </h3>
                   {status !== 'Approved' && (
-                    <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-1.5 py-0.5 rounded flex items-center gap-1">
-                      <Lock className="w-3 h-3 text-slate-500" />
+                    <span className="text-[9px] sm:text-[10px] bg-slate-100 text-slate-600 font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
+                      <Lock className="w-2.5 h-2.5 text-slate-500" />
                       <span>Locked</span>
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="hidden sm:block text-xs text-slate-500 mt-1">
                   Print your practice result notification slip and review solution explanations.
                 </p>
               </div>
-              <span className={`text-xs font-bold mt-4 flex items-center gap-1 ${
+              <span className={`text-[11px] sm:text-xs font-bold mt-2 sm:mt-4 flex items-center gap-1 ${
                 status === 'Approved' ? 'text-purple-700' : 'text-slate-500'
               }`}>
-                <span>{status === 'Approved' ? (latestScore ? `Latest: ${latestScore}/400 →` : 'No Results Yet →') : 'Locked (Pending Approval)'}</span>
+                <span>{status === 'Approved' ? (latestScore ? `Latest: ${latestScore}/400 →` : 'Results →') : 'Locked'}</span>
               </span>
             </div>
 
             {/* Card 4: Choice of Institution & O'Levels */}
             <div
               onClick={handleOpenChoices}
-              className={`bg-white p-5 rounded-xl border shadow-sm transition-all cursor-pointer group flex flex-col justify-between ${
+              className={`bg-white p-3 sm:p-5 rounded-xl border shadow-sm transition-all cursor-pointer group flex flex-col justify-between ${
                 status === 'Approved' ? 'border-slate-300 hover:shadow-md hover:border-[#006633]' : 'border-slate-200'
               }`}
             >
               <div>
-                <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                  <Building className="w-5 h-5" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-110 transition-transform">
+                  <Building className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
-                <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-sm text-slate-900 uppercase">
-                    Institution Choices
+                <div className="flex items-start sm:items-center justify-between gap-1">
+                  <h3 className="font-bold text-xs sm:text-sm text-slate-900 uppercase leading-snug">
+                    Choices &amp; O'Level
                   </h3>
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 ${
+                  <span className={`text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 sm:gap-1 flex-shrink-0 ${
                     status === 'Approved' ? 'bg-emerald-50 text-emerald-800' : 'bg-slate-100 text-slate-600'
                   }`}>
                     {status !== 'Approved' && <Lock className="w-2.5 h-2.5 text-slate-500" />}
                     <span>{status === 'Approved' ? '4 Choices' : 'Locked'}</span>
                   </span>
                 </div>
-                <p className="text-xs font-bold text-slate-800 mt-1 truncate">
+                <p className="hidden sm:block text-xs font-bold text-slate-800 mt-1 truncate">
                   1st: {currentUser.firstChoice?.institution}
                 </p>
-                <p className="text-[11px] text-emerald-800 font-semibold truncate">
+                <p className="hidden sm:block text-[11px] text-emerald-800 font-semibold truncate">
                   {currentUser.firstChoice?.course}
                 </p>
               </div>
-              <span className={`text-xs font-bold mt-4 flex items-center gap-1 ${
+              <span className={`text-[11px] sm:text-xs font-bold mt-2 sm:mt-4 flex items-center gap-1 ${
                 status === 'Approved' ? 'text-[#006633]' : 'text-slate-500'
               }`}>
-                <span>{status === 'Approved' ? 'View & Edit Choices →' : 'Choices Frozen (Pending Review)'}</span>
+                <span>{status === 'Approved' ? 'View & Edit →' : 'Frozen'}</span>
               </span>
             </div>
           </div>
@@ -547,9 +862,19 @@ export const DashboardView = () => {
             <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
               Registered UTME 4-Subject Combination
             </h3>
-            <span className="text-xs text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-              Approved
-            </span>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setPhase('setup')}
+                className="text-xs font-bold text-[#006633] hover:underline flex items-center gap-1"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>Change Combination</span>
+              </button>
+              <span className="text-xs text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                Approved
+              </span>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

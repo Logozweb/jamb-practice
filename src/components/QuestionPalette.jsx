@@ -6,7 +6,8 @@ export const QuestionPalette = () => {
     activeSubjectId,
     currentQuestionIndex,
     examData,
-    jumpToQuestion
+    jumpToQuestion,
+    setIsMobilePaletteOpen
   } = useExam();
 
   const subjectData = examData[activeSubjectId];
@@ -72,7 +73,10 @@ export const QuestionPalette = () => {
             return (
               <button
                 key={idx}
-                onClick={() => jumpToQuestion(idx)}
+                onClick={() => {
+                  jumpToQuestion(idx);
+                  setIsMobilePaletteOpen?.(false);
+                }}
                 className={`h-8 rounded text-xs transition-all flex items-center justify-center font-mono font-bold ${cellClass}`}
                 title={`Question ${idx + 1}${isFlagged ? ' (Flagged)' : isAnswered ? ' (Answered)' : ' (Unanswered)'}`}
               >

@@ -199,15 +199,19 @@ export function letterToIndex(ans) {
 
 // Map subject IDs between our app and ALOC API naming
 export const ALOC_SUBJECT_MAP = {
-  english: 'english',
+  english: 'english-language',
   mathematics: 'mathematics',
   physics: 'physics',
   chemistry: 'chemistry',
   biology: 'biology',
   economics: 'economics',
   government: 'government',
-  literature: 'englishlit',
-  commerce: 'commerce'
+  literature: 'literature-in-english',
+  commerce: 'commerce',
+  crk: 'christian-religious-studies',
+  crs: 'christian-religious-studies',
+  geography: 'geography',
+  accounting: 'accounting'
 };
 
 // Transform a single ALOC raw question object into our standard structure
@@ -235,7 +239,7 @@ function formatSingleQuestion(item, idx) {
   // Handle section: distinguish between Reading Passage, Section Instruction, and Worked Solution
   let passage = null;
   let explanation = cleanHtml(item.solution || item.explanation || '');
-  let topic = cleanTopicTitle(item.topic);
+  let topic = cleanTopicTitle(item.metadata?.topic || item.metadata?.subtopic || item.topic);
 
   const rawSection = item.section;
   if (rawSection) {
@@ -245,7 +249,7 @@ function formatSingleQuestion(item, idx) {
       const pTitle = cleanHtml(rawSection.instruction || rawSection.title) || 'Reading Comprehension Passage';
       if (pText) {
         passage = { title: pTitle, text: pText };
-        topic = cleanTopicTitle(item.topic, 'Comprehension');
+        topic = cleanTopicTitle(topic || item.topic, 'Comprehension');
       }
     } else if (typeof rawSection === 'string') {
       const sectionCleaned = cleanHtml(rawSection);
@@ -256,7 +260,7 @@ function formatSingleQuestion(item, idx) {
         if (!explanation || explanation.length < sectionCleaned.length) {
           explanation = sectionCleaned;
         }
-        topic = cleanTopicTitle(item.topic, 'Mathematics');
+        topic = cleanTopicTitle(topic || item.topic, 'Mathematics');
       } else if (sectionCleaned.length > 25 || isSectionInstruction(sectionCleaned)) {
         // Legitimate Reading Passage or Section Instruction (e.g. English comprehension passage)
         const isInst = isSectionInstruction(sectionCleaned);
@@ -264,30 +268,50 @@ function formatSingleQuestion(item, idx) {
           title: isInst ? 'Section Instruction' : 'Reading Comprehension Passage',
           text: sectionCleaned
         };
-        topic = cleanTopicTitle(item.topic, isInst ? 'Section Question' : 'Comprehension');
+        topic = cleanTopicTitle(topic || item.topic, isInst ? 'Section Question' : 'Comprehension');
       } else {
         // Short section name (e.g. "Indices", "Vocabulary")
-        topic = cleanTopicTitle(sectionCleaned, 'Authentic Past Question');
+        topic = cleanTopicTitle(topic || sectionCleaned, 'Authentic Past Question');
       }
     }
   }
 
+  // Handle passage from item.passage
+  if (!passage && item.passage) {
+    if (typeof item.passage === 'object') {
+      passage = {
+        title: cleanHtml(item.passage.title || item.passage.instruction || 'Reading Comprehension Passage'),
+        text: cleanHtml(item.passage.text || item.passage.body || '')
+      };
+    } else if (typeof item.passage === 'string' && item.passage.length > 20) {
+      passage = {
+        title: 'Reading Comprehension Passage',
+        text: cleanHtml(item.passage)
+      };
+    }
+  }
+
+  // Answer extraction supporting modern ALOC Station (correctAnswer: 'B') and legacy (answer: 'B')
+  const rawAnswer = item.correctAnswer || item.answer || item.solution_letter || item.correct_answer;
+  const answerIndex = letterToIndex(rawAnswer);
+
   // If explanation is still empty, provide clean default
   if (!explanation) {
-    explanation = 'Authentic UTME past examination answer and explanation.';
+    const letter = ['A', 'B', 'C', 'D'][answerIndex] || 'A';
+    explanation = `Official UTME past examination answer is Option ${letter}.`;
   }
 
   return {
     id: `aloc_${item.id || idx}_${Date.now()}`,
     year: item.year || item.examyear || 2023,
-    topic,
+    topic: topic || 'Authentic Past Question',
     passage,
     question: cleanHtml(item.text || item.question || 'UTME Examination Question'),
     options,
-    answer: letterToIndex(item.answer),
+    answer: answerIndex,
     explanation,
-    image: item.image || item.diagram || null,
-    difficulty: 'medium',
+    image: item.imageUrl || item.image || item.diagram || null,
+    difficulty: item.metadata?.difficultyScore ? (item.metadata.difficultyScore > 2 ? 'hard' : 'medium') : 'medium',
     source: 'ALOC Past Questions API'
   };
 }
@@ -300,43 +324,50 @@ async function fetchSingleAlocBatch(subjectId, limit = 15, year = null, token) {
   const isModernKey = token.startsWith('aloc_') || token.startsWith('alc_');
   const yearParam = year ? `&year=${year}` : '';
 
+  const authHeaders = {
+    'Authorization': `Bearer ${token}`,
+    'x-api-key': token,
+    'AccessToken': token,
+    'Accept': 'application/json'
+  };
+
   const attempts = isModernKey
     ? [
         {
           url: `https://dev.aloc.com.ng/api/v1/questions?subject=${alocSubject}&examType=jamb&limit=${limit}${yearParam}`,
-          headers: { 'X-API-Key': token, 'Accept': 'application/json' },
+          headers: authHeaders,
           name: 'ALOC Station (dev.aloc.com.ng)'
         },
         {
           url: `/api/aloc/questions?endpoint=modern&subject=${alocSubject}&limit=${limit}${yearParam}`,
-          headers: { 'X-API-Key': token, 'Accept': 'application/json' },
+          headers: authHeaders,
           name: 'ALOC Station (Local Relay)'
         },
         {
           url: `https://questions.aloc.com.ng/api/v2/m?subject=${alocSubject}&type=utme${yearParam}`,
-          headers: { 'AccessToken': token, 'X-API-Key': token, 'Accept': 'application/json' },
+          headers: authHeaders,
           name: 'ALOC Legacy (questions.aloc.com.ng)'
         }
       ]
     : [
         {
           url: `https://dev.aloc.com.ng/api/v1/questions?subject=${alocSubject}&examType=jamb&limit=${limit}${yearParam}`,
-          headers: { 'X-API-Key': token, 'Accept': 'application/json' },
+          headers: authHeaders,
           name: 'ALOC Station (dev.aloc.com.ng)'
         },
         {
           url: `/api/aloc/questions?endpoint=modern&subject=${alocSubject}&limit=${limit}${yearParam}`,
-          headers: { 'X-API-Key': token, 'Accept': 'application/json' },
+          headers: authHeaders,
           name: 'ALOC Station (Local Relay)'
         },
         {
           url: `https://questions.aloc.com.ng/api/v2/m?subject=${alocSubject}&type=utme${yearParam}`,
-          headers: { 'AccessToken': token, 'X-API-Key': token, 'Accept': 'application/json' },
+          headers: authHeaders,
           name: 'ALOC Legacy (questions.aloc.com.ng)'
         },
         {
           url: `/api/aloc/questions?endpoint=legacy&subject=${alocSubject}${yearParam}`,
-          headers: { 'AccessToken': token, 'X-API-Key': token, 'Accept': 'application/json' },
+          headers: authHeaders,
           name: 'ALOC Legacy (Local Relay)'
         }
       ];
@@ -371,25 +402,39 @@ async function fetchSingleAlocBatch(subjectId, limit = 15, year = null, token) {
  * to accumulate up to the required count (e.g. 40 or 60 questions).
  */
 export async function fetchAlocQuestions(subjectId, count = 40, apiKey = null) {
-  const rawToken = apiKey || localStorage.getItem('jamb_aloc_api_key') || '';
+  const rawToken = apiKey || (typeof localStorage !== 'undefined' ? localStorage.getItem('jamb_aloc_api_key') : '') || '';
   const token = rawToken.trim().replace(/^["']|["']$/g, '');
+
+  // 1. Try our high-speed SQLite-backed local endpoint (serves cached ALOC questions + batches remote requests safely using DB API key)
+  try {
+    const baseUrl = typeof window !== 'undefined' ? '' : 'http://localhost:3000';
+    const keyParam = token ? `&apiKey=${encodeURIComponent(token)}` : '';
+    const localRes = await fetch(`${baseUrl}/api/aloc/subject-questions?subject=${encodeURIComponent(subjectId)}&count=${count}${keyParam}`);
+    if (localRes.ok) {
+      const data = await localRes.json();
+      if (data && Array.isArray(data.questions) && data.questions.length > 0) {
+        return data.questions.map((item, idx) => formatSingleQuestion(item, idx));
+      }
+    }
+  } catch (err) {
+    console.warn(`Local ALOC proxy note for ${subjectId}:`, err.message);
+  }
 
   if (!token) {
     throw new Error('No ALOC API key provided. Please enter your API Key from aloc.com.ng.');
   }
 
-  // Quick check / test call (1 to 15 questions)
+  // 2. Direct remote fetch fallback:
+  // Quick test check (1 to 15 questions)
   if (count <= 15) {
     const list = await fetchSingleAlocBatch(subjectId, Math.min(count, 15), null, token);
-    if (!list || list.length === 0) {
-      throw new Error(`No past questions returned from ALOC for ${subjectId}. Please verify your API key and email verification on ALOC.`);
+    if (Array.isArray(list) && list.length > 0) {
+      return list.map((item, idx) => formatSingleQuestion(item, idx));
     }
-    return list.map((item, idx) => formatSingleQuestion(item, idx));
   }
 
   // Multi-batch collection across different JAMB past examination years
-  // Each call delivers up to 15 questions. By querying multiple years, we achieve 40 to 60 questions.
-  const candidateYears = [null, 2023, 2022, 2021, 2020, 2019, 2018];
+  const candidateYears = [null, 2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015, 2014, 2013];
   let accumulated = [];
   const seenQuestionSignatures = new Set();
 
@@ -407,6 +452,9 @@ export async function fetchAlocQuestions(subjectId, count = 40, apiKey = null) {
         if (accumulated.length >= count) break;
       }
     }
+
+    // Pacing to prevent 429 rate limiting
+    await new Promise(r => setTimeout(r, 200));
   }
 
   if (accumulated.length === 0) {

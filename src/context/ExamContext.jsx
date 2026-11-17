@@ -14,6 +14,7 @@ import {
   apiSavePlatformSettings,
   apiGetAdmins,
   apiLoginAdmin,
+  apiLogoutAdmin,
   apiUpdateAdminPassword
 } from '../services/dbService';
 
@@ -128,6 +129,14 @@ export const ExamProvider = ({ children }) => {
 
         if (dbSettings) {
           setExamSettings(prev => ({ ...prev, ...dbSettings }));
+          if (dbSettings.apiSource) {
+            setApiSource(dbSettings.apiSource);
+            localStorage.setItem('jamb_api_source', dbSettings.apiSource);
+          }
+          if (dbSettings.alocApiKey !== undefined) {
+            setAlocApiKey(dbSettings.alocApiKey);
+            localStorage.setItem('jamb_aloc_api_key', dbSettings.alocApiKey);
+          }
         }
 
         if (Array.isArray(dbAdmins) && dbAdmins.length > 0) {
@@ -183,6 +192,31 @@ export const ExamProvider = ({ children }) => {
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
   const [isEightKeyGuideOpen, setIsEightKeyGuideOpen] = useState(false);
   const [activeKeyFeedback, setActiveKeyFeedback] = useState(null);
+
+  // Anti-Malpractice & Fullscreen Security State
+  const [malpracticeStrikes, setMalpracticeStrikes] = useState(0);
+  const [isMalpracticeModalOpen, setIsMalpracticeModalOpen] = useState(false);
+  const [isDisqualified, setIsDisqualified] = useState(false);
+  const [isMobilePaletteOpen, setIsMobilePaletteOpen] = useState(false);
+  const [isPreExamModalOpen, setIsPreExamModalOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(
+    typeof document !== 'undefined' ? Boolean(document.fullscreenElement) : false
+  );
+
+  const reEnterFullscreen = useCallback(() => {
+    try {
+      if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen()
+          .then(() => {
+            setIsFullscreen(true);
+            setIsMalpracticeModalOpen(false);
+          })
+          .catch((err) => {
+            console.warn('Re-enter fullscreen error:', err.message);
+          });
+      }
+    } catch (e) {}
+  }, []);
 
   // Live JAMB API (ALOC) Settings
   const [apiSource, setApiSource] = useState(() => {
@@ -331,7 +365,9 @@ export const ExamProvider = ({ children }) => {
     try {
       localStorage.removeItem('jamb_is_admin');
       localStorage.removeItem('jamb_active_admin_id');
+      localStorage.removeItem('jamb_admin_token');
     } catch (e) {}
+    apiLogoutAdmin();
     setPhase('admin-login');
   };
 
@@ -418,14 +454,14 @@ export const ExamProvider = ({ children }) => {
   const approveCandidate = (candidateId) => {
     setCandidates(prev => prev.map(c => {
       if (c.id === candidateId) {
-        return { ...c, status: 'Approved', disapprovalReason: null };
+        return { ...c, status: 'Approved', disapprovalReason: null, malpracticeBlocked: false };
       }
       return c;
     }));
     if (currentUser?.id === candidateId) {
-      setCurrentUser(prev => ({ ...prev, status: 'Approved', disapprovalReason: null }));
+      setCurrentUser(prev => ({ ...prev, status: 'Approved', disapprovalReason: null, malpracticeBlocked: false }));
     }
-    apiUpdateCandidate(candidateId, { status: 'Approved', disapprovalReason: null });
+    apiUpdateCandidate(candidateId, { status: 'Approved', disapprovalReason: null, malpracticeBlocked: false });
   };
 
   const disapproveCandidate = (candidateId, reason) => {
@@ -471,7 +507,13 @@ export const ExamProvider = ({ children }) => {
   };
 
   // Final Results Data
-  const [finalResult, setFinalResult] = useState(null);
+  const [finalResult, setFinalResult] = useState(() => {
+    try {
+      const saved = localStorage.getItem('jamb_final_result');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return null;
+  });
 
   // Auth: Login function
   const login = async (emailOrReg, password) => {
@@ -512,7 +554,7 @@ export const ExamProvider = ({ children }) => {
     const regNumber = candidateData.regNumber || ('2026' + Math.floor(10000000 + Math.random() * 90000000) + 'EB');
     const profileCode = candidateData.profileCode || ('55019' + Math.floor(10000 + Math.random() * 90000));
     const seatNumber = candidateData.seatNumber || (`A-0${Math.floor(10 + Math.random() * 89)}`);
-    const center = candidateData.center || 'JAMB CBT MODEL CENTRE, BWARI, ABUJA';
+    const center = 'ONLINE JAMB CBT SIMULATION';
     const passport = candidateData.passport || `https://ui-avatars.com/api/?name=${encodeURIComponent(candidateData.name || 'Candidate')}&background=006633&color=fff&size=200`;
 
     const newCandidate = {
@@ -613,10 +655,26 @@ export const ExamProvider = ({ children }) => {
 
   // Initialize/Start the Examination
   const startExam = useCallback(async (overrideMode = null, overrideLength = null) => {
+    if (currentUser?.status === 'Suspended' || currentUser?.malpracticeBlocked) {
+      alert(`Access Blocked: Your account was suspended for suspected examination malpractice (${currentUser.disapprovalReason || 'Exceeded allowable screen navigation violations'}). An Administrator must re-approve your account before you can take any exam.`);
+      return;
+    }
+
     if (examSettings.requireApprovalToSit && currentUser?.status !== 'Approved') {
       alert(`Access Restricted: Candidate registration status is "${currentUser?.status || 'Pending'}". Platform administrator approval is required before you can sit for the CBT examination.`);
       return;
     }
+
+    setMalpracticeStrikes(0);
+    setIsDisqualified(false);
+    setIsMalpracticeModalOpen(false);
+    setIsFullscreen(true);
+
+    try {
+      if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+    } catch (e) {}
 
     const mode = overrideMode || examMode;
     const lengthMode = overrideLength || examLength;
@@ -625,6 +683,14 @@ export const ExamProvider = ({ children }) => {
     }
     const initialData = {};
     let liveSuccessCount = 0;
+    const effectiveSource = examSettings?.apiSource || apiSource;
+    const effectiveKey = examSettings?.alocApiKey || alocApiKey;
+    const isLiveAloc = ['live_aloc', 'aloc'].includes(effectiveSource);
+
+    // ONLY the Official FULL MOCK EXAM (standard 180 questions simulation) uses the remote ALOC API!
+    // Practice, Study, and Quick Sprint modes strictly use the verified local question bank.
+    const isFullMock = (mode === 'simulation' && lengthMode === 'standard');
+    const shouldFetchFromApi = isFullMock && isLiveAloc && Boolean(effectiveKey);
 
     setIsLoadingQuestions(true);
 
@@ -636,10 +702,10 @@ export const ExamProvider = ({ children }) => {
 
       let questions = [];
 
-      // Try fetching real live questions from ALOC API if enabled
-      if (apiSource === 'live_aloc' && alocApiKey) {
+      // Fetch from ALOC API ONLY for Official Full Mock Exam
+      if (shouldFetchFromApi) {
         try {
-          const liveQs = await fetchAlocQuestions(subId, targetCount, alocApiKey);
+          const liveQs = await fetchAlocQuestions(subId, targetCount, effectiveKey);
           if (liveQs && liveQs.length > 0) {
             questions = liveQs;
             liveSuccessCount++;
@@ -675,7 +741,7 @@ export const ExamProvider = ({ children }) => {
       };
     }
 
-    if (apiSource === 'live_aloc') {
+    if (shouldFetchFromApi) {
       if (liveSuccessCount > 0) {
         setApiFetchNotice(`Live ALOC JAMB API connected! Loaded authentic past questions for ${liveSuccessCount} subjects.`);
       } else {
@@ -794,10 +860,16 @@ export const ExamProvider = ({ children }) => {
   }, [selectedSubjectIds]);
 
   // Submit Exam & Calculate Authentic JAMB Scores
-  const submitExam = useCallback((autoTriggered = false) => {
+  const submitExam = useCallback((autoTriggered = false, malpracticeDisqualification = false) => {
     clearInterval(timerRef.current);
     setIsTimerRunning(false);
     setIsSubmitModalOpen(false);
+
+    try {
+      if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+    } catch (e) {}
 
     let totalRawCorrect = 0;
     let totalQuestionsCount = 0;
@@ -840,33 +912,61 @@ export const ExamProvider = ({ children }) => {
       });
     });
 
-    const aggregateScore = subjectBreakdown.reduce((sum, item) => sum + item.scaledScore, 0);
+    const isDisqualifiedAttempt = Boolean(malpracticeDisqualification);
+    const calculatedAggregate = subjectBreakdown.reduce((sum, item) => sum + item.scaledScore, 0);
+    const aggregateScore = isDisqualifiedAttempt ? 0 : calculatedAggregate;
     const timeSpentSeconds = 7200 - timerSeconds;
 
+    const isFullMock = examMode === 'simulation' && examLength === 'standard';
+    const examType = isFullMock ? 'full_mock' : (examMode === 'practice' ? 'practice' : 'test');
+    const resultId = `${isFullMock ? 'mock' : 'attempt'}_${Date.now()}`;
+    const dateTaken = new Date().toISOString();
+
     const resultSummary = {
+      id: resultId,
       candidate: currentUser,
-      completedAt: new Date().toISOString(),
+      completedAt: dateTaken,
+      dateTaken,
       timeSpentSeconds,
       autoTriggered,
       aggregateScore,
       subjectBreakdown,
       totalQuestionsCount,
       totalRawCorrect,
-      examData
+      examMode,
+      examLength,
+      examType,
+      examData,
+      disqualified: isDisqualifiedAttempt,
+      disqualificationReason: isDisqualifiedAttempt ? 'Disqualified for examination malpractice (3 navigation violations)' : null
     };
 
     // Save to candidate's history
     if (currentUser) {
+      const historyItem = {
+        id: resultId,
+        date: dateTaken.split('T')[0],
+        dateTaken,
+        examType,
+        examMode,
+        examLength,
+        aggregateScore,
+        subjectBreakdown,
+        timeSpentSeconds,
+        totalQuestionsCount,
+        totalRawCorrect,
+        examData,
+        disqualified: isDisqualifiedAttempt,
+        disqualificationReason: isDisqualifiedAttempt ? 'Disqualified for examination malpractice (3 navigation violations)' : null
+      };
       const updatedUser = {
         ...currentUser,
+        status: isDisqualifiedAttempt ? 'Disapproved' : currentUser.status,
+        malpracticeBlocked: isDisqualifiedAttempt ? true : currentUser.malpracticeBlocked,
+        disapprovalReason: isDisqualifiedAttempt ? 'Disapproved for examination malpractice: Exceeded allowable navigation and fullscreen violations (3 strikes).' : currentUser.disapprovalReason,
         examHistory: [
-          {
-            id: `mock_${Date.now()}`,
-            date: new Date().toISOString().split('T')[0],
-            aggregateScore,
-            subjectBreakdown
-          },
-          ...(currentUser.examHistory || [])
+          historyItem,
+          ...(currentUser.examHistory || []).filter(h => h.id !== resultId)
         ]
       };
       updateCurrentUser(updatedUser);
@@ -874,19 +974,123 @@ export const ExamProvider = ({ children }) => {
 
     // Persist completed examination to SQLite database
     apiSaveExamResult({
+      id: resultId,
       candidateId: currentUser?.id || 'guest',
       candidateName: currentUser?.name || 'JAMB Candidate',
       regNumber: currentUser?.regNumber || 'N/A',
       aggregateScore,
       subjectBreakdown,
       timeSpentSeconds,
-      dateTaken: new Date().toISOString(),
+      dateTaken,
+      examType,
+      examLength,
+      examMode,
+      disqualified: isDisqualifiedAttempt ? 1 : 0,
+      disqualificationReason: isDisqualifiedAttempt ? 'Disqualified for examination malpractice (3 navigation violations)' : null,
       examData
     });
 
     setFinalResult(resultSummary);
+    try {
+      localStorage.setItem('jamb_final_result', JSON.stringify(resultSummary));
+    } catch (e) {}
     setPhase('result');
-  }, [currentUser, examData, selectedSubjectIds, timerSeconds]);
+  }, [currentUser, examData, selectedSubjectIds, timerSeconds, examLength, examMode]);
+
+  // Fullscreen & Anti-Malpractice Navigation Violation Monitor
+  useEffect(() => {
+    const isExamSessionActive = (phase === 'active' || isLoadingQuestions) && !isDisqualified;
+    if (!isExamSessionActive) return;
+
+    let debounceTimer = null;
+
+    const recordViolation = (reason = '') => {
+      // Don't trigger if submit modal is open, or already disqualified, or warning modal is already on screen
+      if (isSubmitModalOpen || isDisqualified || isMalpracticeModalOpen) return;
+
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        setMalpracticeStrikes(prev => {
+          const next = prev + 1;
+          setIsMalpracticeModalOpen(true);
+
+          if (next >= 3) {
+            setIsDisqualified(true);
+            setTimeout(() => {
+              submitExam(true, true);
+            }, 800);
+          }
+          return next;
+        });
+      }, 300);
+    };
+
+    const handleVisibility = () => {
+      if (document.hidden) {
+        recordViolation('tab-switch');
+      }
+    };
+
+    const handleBlur = () => {
+      recordViolation('window-blur');
+    };
+
+    const handleFullscreen = () => {
+      const inFs = Boolean(document.fullscreenElement);
+      setIsFullscreen(inFs);
+      if (!inFs) {
+        recordViolation('fullscreen-exit');
+      }
+    };
+
+    const handleContextMenu = (e) => {
+      e.preventDefault();
+      recordViolation('right-click-inspect');
+    };
+
+    const handleKeyDown = (e) => {
+      // 1. Block Escape key fullscreen exit
+      if (e.key === 'Escape') {
+        if (isSubmitModalOpen || isCalculatorOpen || isMobilePaletteOpen) {
+          return;
+        }
+        e.preventDefault();
+        recordViolation('escape-key');
+        return;
+      }
+
+      // 2. Block F12, DevTools inspector (Ctrl+Shift+I/J/C), View Source (Ctrl+U)
+      const isDevToolsKey =
+        e.key === 'F12' ||
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && ['I', 'J', 'C'].includes((e.key || '').toUpperCase())) ||
+        ((e.ctrlKey || e.metaKey) && (e.key || '').toUpperCase() === 'U');
+
+      if (isDevToolsKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        recordViolation('devtools-inspection');
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('blur', handleBlur);
+    document.addEventListener('fullscreenchange', handleFullscreen);
+    document.addEventListener('webkitfullscreenchange', handleFullscreen);
+    document.addEventListener('mozfullscreenchange', handleFullscreen);
+    window.addEventListener('keydown', handleKeyDown, true);
+    window.addEventListener('contextmenu', handleContextMenu, true);
+
+    return () => {
+      clearTimeout(debounceTimer);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('blur', handleBlur);
+      document.removeEventListener('fullscreenchange', handleFullscreen);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreen);
+      document.removeEventListener('mozfullscreenchange', handleFullscreen);
+      window.removeEventListener('keydown', handleKeyDown, true);
+      window.removeEventListener('contextmenu', handleContextMenu, true);
+    };
+  }, [phase, isLoadingQuestions, isDisqualified, isSubmitModalOpen, isMalpracticeModalOpen, isCalculatorOpen, isMobilePaletteOpen, submitExam]);
 
   const triggerKeyFeedback = (key) => {
     setActiveKeyFeedback(key);
@@ -994,6 +1198,7 @@ export const ExamProvider = ({ children }) => {
         setIsEightKeyGuideOpen,
         activeKeyFeedback,
         finalResult,
+        setFinalResult,
         apiSource,
         setApiSource,
         alocApiKey,
@@ -1022,6 +1227,20 @@ export const ExamProvider = ({ children }) => {
         updateCandidateChoices,
         examSettings,
         updateExamSettings,
+        updateCurrentUser,
+        malpracticeStrikes,
+        setMalpracticeStrikes,
+        isMalpracticeModalOpen,
+        setIsMalpracticeModalOpen,
+        isDisqualified,
+        setIsDisqualified,
+        isMobilePaletteOpen,
+        setIsMobilePaletteOpen,
+        isPreExamModalOpen,
+        setIsPreExamModalOpen,
+        isFullscreen,
+        setIsFullscreen,
+        reEnterFullscreen,
         startExam,
         selectOption,
         toggleFlag,

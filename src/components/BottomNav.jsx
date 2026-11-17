@@ -1,6 +1,6 @@
 import React from 'react';
 import { useExam } from '../context/ExamContext';
-import { ChevronLeft, ChevronRight, Flag, Send, Keyboard } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flag, Send, Keyboard, LayoutGrid } from 'lucide-react';
 
 export const BottomNav = () => {
   const {
@@ -12,7 +12,8 @@ export const BottomNav = () => {
     toggleFlag,
     setIsSubmitModalOpen,
     activeKeyFeedback,
-    selectOption
+    selectOption,
+    setIsMobilePaletteOpen
   } = useExam();
 
   const subjectData = examData[activeSubjectId];
@@ -35,8 +36,62 @@ export const BottomNav = () => {
   return (
     <div className="bg-white border-t border-slate-300 py-3 px-4 shadow-lg sticky bottom-0 z-20">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
-        {/* Left: Previous Navigation Button */}
-        <div className="flex items-center gap-2 w-full md:w-auto justify-between md:justify-start">
+        {/* Mobile Viewport Toolbar (< md) */}
+        <div className="flex md:hidden items-center justify-between gap-1.5 w-full">
+          <button
+            onClick={goToPrevQuestion}
+            disabled={isFirst}
+            className={`flex items-center gap-1 px-2.5 py-2 rounded-lg font-bold text-xs uppercase transition-all border ${
+              isFirst
+                ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300 shadow-sm'
+            }`}
+          >
+            <ChevronLeft className="w-4 h-4" />
+            <span>Prev</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsMobilePaletteOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg font-bold text-xs bg-slate-100 text-slate-800 border border-slate-300 hover:bg-slate-200 shadow-sm"
+            title="Open Question Grid"
+          >
+            <LayoutGrid className="w-3.5 h-3.5 text-[#006633]" />
+            <span>Q{currentQuestionIndex + 1}/{totalQuestions}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={toggleFlag}
+            className={`p-2 rounded-lg border font-bold text-xs flex items-center justify-center transition-all ${
+              isFlagged ? 'bg-amber-100 text-amber-900 border-amber-400' : 'bg-white text-slate-600 border-slate-300'
+            }`}
+            title="Flag / Review"
+          >
+            <Flag className={`w-4 h-4 ${isFlagged ? 'fill-amber-500 text-amber-600' : ''}`} />
+          </button>
+
+          <button
+            onClick={goToNextQuestion}
+            className="flex items-center gap-1 px-2.5 py-2 rounded-lg font-bold text-xs uppercase bg-[#006633] hover:bg-[#00552b] text-white shadow-sm"
+          >
+            <span>Next</span>
+            <ChevronRight className="w-4 h-4" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsSubmitModalOpen(true)}
+            className="flex items-center gap-1 px-2.5 py-2 rounded-lg font-bold text-xs uppercase bg-red-600 hover:bg-red-700 text-white shadow-sm"
+            title="Submit / End Exam"
+          >
+            <span>End</span>
+          </button>
+        </div>
+
+        {/* Desktop Left: Previous Navigation Button */}
+        <div className="hidden md:flex items-center gap-2">
           <button
             onClick={goToPrevQuestion}
             disabled={isFirst}
@@ -50,14 +105,6 @@ export const BottomNav = () => {
             <ChevronLeft className="w-4 h-4" />
             <span>Previous</span>
             <kbd className="hidden sm:inline-block px-1.5 py-0.5 bg-slate-200 text-slate-700 rounded font-mono text-[10px]">P</kbd>
-          </button>
-
-          <button
-            onClick={goToNextQuestion}
-            className="md:hidden flex items-center gap-1.5 px-4 py-2.5 rounded-lg font-bold text-xs sm:text-sm uppercase tracking-wider bg-[#006633] hover:bg-[#00552b] text-white active:scale-95 shadow-sm"
-          >
-            <span>Next</span>
-            <ChevronRight className="w-4 h-4" />
           </button>
         </div>
 

@@ -1,4 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
+import crypto from 'node:crypto';
 import fs from 'fs';
 import path from 'path';
 
@@ -69,6 +70,9 @@ function initSchema(db) {
       exam_data TEXT
     );
   `);
+  try { db.exec('ALTER TABLE exam_results ADD COLUMN exam_type TEXT DEFAULT "full_mock"'); } catch (e) {}
+  try { db.exec('ALTER TABLE exam_results ADD COLUMN exam_mode TEXT DEFAULT "simulation"'); } catch (e) {}
+  try { db.exec('ALTER TABLE exam_results ADD COLUMN exam_length TEXT DEFAULT "standard"'); } catch (e) {}
 
   // 3. Platform Settings Table
   db.exec(`
@@ -137,6 +141,31 @@ function initSchema(db) {
     );
   `);
 
+  // 8. ALOC Questions Cache Table (Persistent storage of live pulled authentic questions)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS aloc_questions_cache (
+      id TEXT PRIMARY KEY,
+      subject TEXT NOT NULL,
+      year INTEGER,
+      signature TEXT UNIQUE,
+      raw_json TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_aloc_subject ON aloc_questions_cache(subject);
+  `);
+
+  // 9. Admin Active Sessions Table (Enforces secure Bearer token authorization)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS admin_sessions (
+      token TEXT PRIMARY KEY,
+      admin_id TEXT NOT NULL,
+      admin_email TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      expires_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_admin_token ON admin_sessions(token);
+  `);
+
   // Ensure Default Admin Exists
   const adminCheck = db.prepare('SELECT id FROM admin_users WHERE email = ?').get('hello@pauladisa.com');
   if (!adminCheck) {
@@ -146,12 +175,74 @@ function initSchema(db) {
     `).run(
       'admin_root',
       'hello@pauladisa.com',
-      'AdminPassword2026!',
+      hashPassword('AdminPassword2026!'),
       'CHIEF CBT CONTROLLER',
       'Super Administrator',
       new Date().toISOString()
     );
   }
+}
+
+// -------------------------------------------------------------
+// Cryptographic Password Hashing & Verification
+// -------------------------------------------------------------
+export function hashPassword(plainText, salt = null) {
+  if (!plainText) return '';
+  if (!salt) {
+    salt = crypto.randomBytes(16).toString('hex');
+  }
+  const hash = crypto.pbkdf2Sync(plainText, salt, 10000, 64, 'sha512').toString('hex');
+  return `${salt}:${hash}`;
+}
+
+export function verifyPassword(plainText, storedHashOrPlain) {
+  if (!plainText || !storedHashOrPlain) return false;
+  // Backward compatibility with legacy plain text password
+  if (!storedHashOrPlain.includes(':')) {
+    return plainText === storedHashOrPlain;
+  }
+  const [salt, hash] = storedHashOrPlain.split(':');
+  const verifyHash = crypto.pbkdf2Sync(plainText, salt, 10000, 64, 'sha512').toString('hex');
+  return hash === verifyHash;
+}
+
+// -------------------------------------------------------------
+// Admin Session Management
+// -------------------------------------------------------------
+export function createAdminSession(admin) {
+  const db = getDatabase();
+  const token = crypto.randomBytes(32).toString('hex');
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 hours validity
+  db.prepare(`
+    INSERT INTO admin_sessions (token, admin_id, admin_email, created_at, expires_at)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(token, admin.id, admin.email, now.toISOString(), expiresAt.toISOString());
+  return { token, expiresAt: expiresAt.toISOString() };
+}
+
+export function verifyAdminSession(token) {
+  if (!token) return null;
+  const cleanToken = token.replace(/^Bearer\s+/i, '').trim();
+  if (!cleanToken) return null;
+  const db = getDatabase();
+  const session = db.prepare(`
+    SELECT * FROM admin_sessions WHERE token = ?
+  `).get(cleanToken);
+  if (!session) return null;
+  if (new Date(session.expires_at).getTime() < Date.now()) {
+    db.prepare('DELETE FROM admin_sessions WHERE token = ?').run(cleanToken);
+    return null;
+  }
+  const admin = db.prepare('SELECT id, email, name, role FROM admin_users WHERE id = ?').get(session.admin_id);
+  return admin || null;
+}
+
+export function destroyAdminSession(token) {
+  if (!token) return;
+  const cleanToken = token.replace(/^Bearer\s+/i, '').trim();
+  const db = getDatabase();
+  db.prepare('DELETE FROM admin_sessions WHERE token = ?').run(cleanToken);
 }
 
 // -------------------------------------------------------------
@@ -177,8 +268,14 @@ export function saveCandidate(candidate) {
   const regNumber = candidate.regNumber || ('2026' + Math.floor(10000000 + Math.random() * 90000000) + 'EB');
   const profileCode = candidate.profileCode || ('55019' + Math.floor(10000 + Math.random() * 90000));
   const seatNumber = candidate.seatNumber || (`A-0${Math.floor(10 + Math.random() * 89)}`);
-  const center = candidate.center || 'JAMB CBT MODEL CENTRE, BWARI, ABUJA';
+  const center = 'ONLINE JAMB CBT SIMULATION';
   const passport = candidate.passport || `https://ui-avatars.com/api/?name=${encodeURIComponent(candidate.name || 'Candidate')}&background=006633&color=fff&size=200`;
+
+  // Cryptographically hash candidate password if plain text
+  let candidatePassword = candidate.password || 'password123';
+  if (!candidatePassword.includes(':')) {
+    candidatePassword = hashPassword(candidatePassword);
+  }
 
   const stmt = db.prepare(`
     INSERT OR REPLACE INTO candidates (
@@ -203,7 +300,7 @@ export function saveCandidate(candidate) {
     candidate.phone || '',
     candidate.gender || 'Not Specified',
     candidate.dob || '2006-05-15',
-    candidate.password || 'password123',
+    candidatePassword,
     candidate.status || 'Approved',
     candidate.disapprovalReason || null,
     regNumber,
@@ -258,25 +355,46 @@ export function authenticateCandidate(emailOrReg, password) {
 
   const row = db.prepare(`
     SELECT * FROM candidates
-    WHERE (LOWER(email) = ? OR UPPER(reg_number) = ? OR profile_code = ?)
-      AND password = ?
-  `).get(clean, cleanReg, emailOrReg.trim(), password);
+    WHERE LOWER(email) = ? OR UPPER(reg_number) = ? OR profile_code = ?
+  `).get(clean, cleanReg, emailOrReg.trim());
 
-  return row ? formatCandidateFromDb(row) : null;
+  if (!row) return null;
+
+  const isValid = verifyPassword(password, row.password);
+  if (!isValid) return null;
+
+  // Seamlessly upgrade legacy plain text passwords to PBKDF2 hash
+  if (!row.password.includes(':')) {
+    const newHash = hashPassword(password);
+    db.prepare('UPDATE candidates SET password = ? WHERE id = ?').run(newHash, row.id);
+  }
+
+  return formatCandidateFromDb(row);
 }
 
 function formatCandidateFromDb(row) {
   const db = getDatabase();
   let examHistory = [];
   try {
-    const historyRows = db.prepare('SELECT id, aggregate_score as aggregateScore, subject_breakdown as subjectBreakdown, time_spent_seconds as timeSpentSeconds, date_taken as date, date_taken as dateTaken FROM exam_results WHERE candidate_id = ? ORDER BY date_taken DESC').all(row.id);
+    const historyRows = db.prepare(`
+      SELECT id, aggregate_score as aggregateScore, subject_breakdown as subjectBreakdown,
+             time_spent_seconds as timeSpentSeconds, date_taken as date, date_taken as dateTaken,
+             exam_data as examData, exam_type as examType, exam_mode as examMode, exam_length as examLength
+      FROM exam_results
+      WHERE candidate_id = ?
+      ORDER BY date_taken DESC
+    `).all(row.id);
     examHistory = historyRows.map(h => ({
       id: h.id,
       aggregateScore: h.aggregateScore,
       subjectBreakdown: safeJsonParse(h.subjectBreakdown, []),
       timeSpentSeconds: h.timeSpentSeconds,
       date: h.date,
-      dateTaken: h.dateTaken
+      dateTaken: h.dateTaken,
+      examType: h.examType || (h.examLength === 'standard' && h.examMode === 'simulation' ? 'full_mock' : 'practice_or_test'),
+      examMode: h.examMode || 'simulation',
+      examLength: h.examLength || 'standard',
+      examData: safeJsonParse(h.examData, {})
     }));
   } catch (e) {}
 
@@ -287,7 +405,6 @@ function formatCandidateFromDb(row) {
     phone: row.phone,
     gender: row.gender,
     dob: row.dob,
-    password: row.password,
     status: row.status,
     disapprovalReason: row.disapproval_reason,
     regNumber: row.reg_number,
@@ -321,9 +438,15 @@ export function getAllExamResults(candidateId = null) {
   const db = getDatabase();
   let rows;
   if (candidateId) {
+    // When queried for a candidate, return ALL exams taken by that student
     rows = db.prepare('SELECT * FROM exam_results WHERE candidate_id = ? ORDER BY date_taken DESC').all(candidateId);
   } else {
-    rows = db.prepare('SELECT * FROM exam_results ORDER BY date_taken DESC').all();
+    // When queried by Admin for central score log, return ONLY Full Mock exams
+    rows = db.prepare(`
+      SELECT * FROM exam_results 
+      WHERE exam_type = 'full_mock' OR (exam_mode = 'simulation' AND exam_length = 'standard')
+      ORDER BY date_taken DESC
+    `).all();
   }
   return rows.map(r => ({
     id: r.id,
@@ -334,6 +457,9 @@ export function getAllExamResults(candidateId = null) {
     subjectBreakdown: safeJsonParse(r.subject_breakdown, []),
     timeSpentSeconds: r.time_spent_seconds,
     dateTaken: r.date_taken,
+    examType: r.exam_type || (r.exam_length === 'standard' && r.exam_mode === 'simulation' ? 'full_mock' : 'practice_or_test'),
+    examMode: r.exam_mode || 'simulation',
+    examLength: r.exam_length || 'standard',
     examData: safeJsonParse(r.exam_data, {})
   }));
 }
@@ -341,11 +467,16 @@ export function getAllExamResults(candidateId = null) {
 export function saveExamResult(result) {
   const db = getDatabase();
   const id = result.id || `result_${Date.now()}`;
+  const examType = result.examType || (result.examLength === 'standard' && result.examMode === 'simulation' ? 'full_mock' : 'practice_or_test');
+  const examMode = result.examMode || 'simulation';
+  const examLength = result.examLength || 'standard';
+
   db.prepare(`
-    INSERT INTO exam_results (
+    INSERT OR REPLACE INTO exam_results (
       id, candidate_id, candidate_name, reg_number, aggregate_score,
-      subject_breakdown, time_spent_seconds, date_taken, exam_data
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      subject_breakdown, time_spent_seconds, date_taken, exam_data,
+      exam_type, exam_mode, exam_length
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     result.candidateId || result.candidate?.id || 'unknown',
@@ -355,9 +486,12 @@ export function saveExamResult(result) {
     JSON.stringify(result.subjectBreakdown || []),
     result.timeSpentSeconds || 0,
     result.dateTaken || new Date().toISOString(),
-    JSON.stringify(result.examData || {})
+    JSON.stringify(result.examData || {}),
+    examType,
+    examMode,
+    examLength
   );
-  return { id, success: true, ...result };
+  return { id, success: true, ...result, examType, examMode, examLength };
 }
 
 // -------------------------------------------------------------
@@ -365,30 +499,45 @@ export function saveExamResult(result) {
 // -------------------------------------------------------------
 export function getAllAdmins() {
   const db = getDatabase();
-  return db.prepare('SELECT id, email, password, name, role, created_at FROM admin_users').all().map(a => ({
-    id: a.id,
-    email: a.email,
-    password: a.password,
-    name: a.name,
-    role: a.role,
-    createdAt: a.created_at
-  }));
+  return db.prepare('SELECT id, email, name, role, created_at FROM admin_users').all();
 }
 
 export function authenticateAdmin(email, password) {
   const db = getDatabase();
   const clean = (email || '').trim().toLowerCase();
-  const row = db.prepare(`
-    SELECT * FROM admin_users
-    WHERE LOWER(email) = ? AND (password = ? OR (LOWER(email) = 'hello@pauladisa.com' AND ? IN ('AdminPassword2026!', 'Icu4ui4su', password)))
-  `).get(clean, password, password);
-  return row ? { id: row.id, email: row.email, name: row.name, role: row.role } : null;
+  const row = db.prepare('SELECT * FROM admin_users WHERE LOWER(email) = ?').get(clean);
+  if (!row) return null;
+
+  let isValid = verifyPassword(password, row.password);
+  // Initial seed fallback
+  if (!isValid && clean === 'hello@pauladisa.com' && ['AdminPassword2026!', 'Icu4ui4su'].includes(password)) {
+    isValid = true;
+  }
+
+  if (!isValid) return null;
+
+  // Upgrade legacy plain-text password to PBKDF2 hash
+  if (!row.password.includes(':')) {
+    const newHash = hashPassword(password);
+    db.prepare('UPDATE admin_users SET password = ? WHERE id = ?').run(newHash, row.id);
+  }
+
+  const session = createAdminSession(row);
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    role: row.role,
+    token: session.token,
+    tokenExpiresAt: session.expiresAt
+  };
 }
 
 export function updateAdminPasswordInDb(email, newPassword) {
   const db = getDatabase();
   const clean = (email || '').trim().toLowerCase();
-  db.prepare('UPDATE admin_users SET password = ? WHERE LOWER(email) = ?').run(newPassword, clean);
+  const hashed = hashPassword(newPassword);
+  db.prepare('UPDATE admin_users SET password = ? WHERE LOWER(email) = ?').run(hashed, clean);
   return { success: true };
 }
 
@@ -575,6 +724,62 @@ export function verifyOtpInDb(email, otpCode, purpose = 'registration') {
   // Mark verified
   db.prepare('UPDATE otp_verifications SET verified = 1 WHERE id = ?').run(record.id);
   return { success: true };
+}
+
+// -------------------------------------------------------------
+// ALOC Questions Cache Operations
+// -------------------------------------------------------------
+export function getCachedAlocQuestions(subject, limit = 60) {
+  try {
+    const db = getDatabase();
+    const rows = db.prepare(`
+      SELECT raw_json FROM aloc_questions_cache
+      WHERE subject = ?
+      ORDER BY RANDOM()
+      LIMIT ?
+    `).all(subject, limit);
+    return rows.map(r => JSON.parse(r.raw_json));
+  } catch (err) {
+    console.error('Error getting cached ALOC questions:', err);
+    return [];
+  }
+}
+
+export function saveCachedAlocQuestions(subject, questions) {
+  if (!Array.isArray(questions) || questions.length === 0) return 0;
+  try {
+    const db = getDatabase();
+    const insert = db.prepare(`
+      INSERT OR IGNORE INTO aloc_questions_cache (id, subject, year, signature, raw_json, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    let count = 0;
+    const now = new Date().toISOString();
+    for (const q of questions) {
+      try {
+        const sig = (q.text || q.question || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 50);
+        if (!sig) continue;
+        const id = q.id || `aloc_${subject}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        const year = q.year || q.examyear || null;
+        insert.run(id, subject, year, sig, JSON.stringify(q), now);
+        count++;
+      } catch (e) {}
+    }
+    return count;
+  } catch (err) {
+    console.error('Error saving cached ALOC questions:', err);
+    return 0;
+  }
+}
+
+export function getCachedAlocCount(subject) {
+  try {
+    const db = getDatabase();
+    const row = db.prepare('SELECT COUNT(*) as cnt FROM aloc_questions_cache WHERE subject = ?').get(subject);
+    return row?.cnt || 0;
+  } catch (e) {
+    return 0;
+  }
 }
 
 function safeJsonParse(str, fallback) {

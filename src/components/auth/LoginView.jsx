@@ -99,7 +99,6 @@ export const LoginView = () => {
                   type="text"
                   value={emailOrReg}
                   onChange={(e) => { setEmailOrReg(e.target.value); setError(''); }}
-                  placeholder="e.g. student@example.com or 202610482910EB"
                   className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 focus:border-[#006633] focus:ring-2 focus:ring-[#006633]/20 text-xs sm:text-sm text-slate-900"
                 />
               </div>
@@ -124,7 +123,6 @@ export const LoginView = () => {
                   type="password"
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); setError(''); }}
-                  placeholder="••••••••"
                   className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 focus:border-[#006633] focus:ring-2 focus:ring-[#006633]/20 text-xs sm:text-sm text-slate-900"
                 />
               </div>

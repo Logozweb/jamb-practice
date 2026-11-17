@@ -57,6 +57,12 @@ export const QuestionView = () => {
               JAMB {currentQ.year}
             </span>
           )}
+          {currentQ.source?.includes('ALOC') && (
+            <span className="text-[11px] px-2 py-0.5 rounded bg-teal-50 text-teal-800 font-bold border border-teal-300 flex items-center gap-1 shadow-2xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-teal-600 animate-ping"></span>
+              <span>ALOC Live API</span>
+            </span>
+          )}
         </div>
 
         {/* Flag for review button */}

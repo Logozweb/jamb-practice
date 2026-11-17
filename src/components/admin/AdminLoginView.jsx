@@ -81,7 +81,6 @@ export const AdminLoginView = () => {
                   type="email"
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); setError(''); }}
-                  placeholder="hello@pauladisa.com"
                   className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 focus:border-slate-800 focus:ring-2 focus:ring-slate-800/20 text-xs sm:text-sm text-slate-900"
                 />
               </div>
@@ -106,7 +105,6 @@ export const AdminLoginView = () => {
                   type="password"
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); setError(''); }}
-                  placeholder="••••••••••••"
                   className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 focus:border-slate-800 focus:ring-2 focus:ring-slate-800/20 text-xs sm:text-sm text-slate-900"
                 />
               </div>
