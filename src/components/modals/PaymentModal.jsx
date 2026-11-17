@@ -53,25 +53,28 @@ export const PaymentModal = ({ isOpen, onClose, targetActionName = 'this feature
               { display_name: 'Registration Number', variable_name: 'reg_number', value: currentUser.regNumber }
             ]
           },
-          callback: async function (response) {
+          callback: function (response) {
             setLoading(false);
             setVerifying(true);
-            const verified = await verifyPaymentWithServer(response.reference, currentUser.id);
-            setVerifying(false);
-
-            if (verified.success) {
-              setSuccessNotice('Payment successful! Your account is approved and all services are unlocked.');
-              if (verified.candidate) {
-                updateCurrentUser(verified.candidate);
+            verifyPaymentWithServer(response.reference, currentUser.id).then(function (verified) {
+              setVerifying(false);
+              if (verified && verified.success) {
+                setSuccessNotice('Payment successful! Your account is approved and all services are unlocked.');
+                if (verified.candidate) {
+                  updateCurrentUser(verified.candidate);
+                } else {
+                  updateCurrentUser({ ...currentUser, status: 'Approved' });
+                }
+                setTimeout(() => {
+                  onClose();
+                }, 2200);
               } else {
-                updateCurrentUser({ ...currentUser, status: 'Approved' });
+                setErrorNotice(verified?.error || 'Payment verification failed. Please contact support.');
               }
-              setTimeout(() => {
-                onClose();
-              }, 2200);
-            } else {
-              setErrorNotice(verified.error || 'Payment verification failed. Please contact support.');
-            }
+            }).catch(function (verifyErr) {
+              setVerifying(false);
+              setErrorNotice('Payment verification failed. Please contact support.');
+            });
           },
           onClose: function () {
             setLoading(false);
@@ -80,8 +83,9 @@ export const PaymentModal = ({ isOpen, onClose, targetActionName = 'this feature
         });
         handler.openIframe();
       } catch (err) {
+        console.error('Paystack checkout initialization error:', err);
         setLoading(false);
-        setErrorNotice('Could not initialize Paystack checkout. Please check internet connection or retry.');
+        setErrorNotice(err?.message || 'Could not initialize Paystack checkout. Please check internet connection or retry.');
       }
     } else {
       // Demonstration / Test Mode (Before admin adds live Paystack public key)
