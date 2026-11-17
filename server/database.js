@@ -166,6 +166,49 @@ function initSchema(db) {
     CREATE INDEX IF NOT EXISTS idx_admin_token ON admin_sessions(token);
   `);
 
+  // 10. Student Payments Table (Paystack Transactions)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS student_payments (
+      id TEXT PRIMARY KEY,
+      candidate_id TEXT NOT NULL,
+      candidate_name TEXT,
+      candidate_email TEXT,
+      reference TEXT NOT NULL UNIQUE,
+      amount_kobo INTEGER NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'NGN',
+      status TEXT NOT NULL,
+      channel TEXT,
+      paid_at TEXT,
+      gateway_response TEXT,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_payments_candidate ON student_payments(candidate_id);
+    CREATE INDEX IF NOT EXISTS idx_payments_reference ON student_payments(reference);
+  `);
+  try { db.exec('ALTER TABLE candidates ADD COLUMN payment_reference TEXT'); } catch (e) {}
+  try { db.exec('ALTER TABLE candidates ADD COLUMN payment_date TEXT'); } catch (e) {}
+
+  // 11. Payment Gateway Settings Table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS payment_settings (
+      id TEXT PRIMARY KEY,
+      enabled INTEGER DEFAULT 1,
+      access_fee_naira INTEGER DEFAULT 50,
+      paystack_public_key TEXT DEFAULT '',
+      paystack_secret_key TEXT DEFAULT '',
+      updated_at TEXT NOT NULL
+    );
+  `);
+  try {
+    const existingPSet = db.prepare('SELECT id FROM payment_settings WHERE id = ?').get('primary');
+    if (!existingPSet) {
+      db.prepare(`
+        INSERT INTO payment_settings (id, enabled, access_fee_naira, paystack_public_key, paystack_secret_key, updated_at)
+        VALUES ('primary', 1, 50, '', '', datetime('now'))
+      `).run();
+    }
+  } catch (e) {}
+
   // Ensure Default Admin Exists
   const adminCheck = db.prepare('SELECT id FROM admin_users WHERE email = ?').get('hello@pauladisa.com');
   if (!adminCheck) {
@@ -425,6 +468,8 @@ function formatCandidateFromDb(row) {
     fourthChoice: safeJsonParse(row.fourth_choice, {}),
     selectedSubjects: safeJsonParse(row.selected_subjects, ['english', 'mathematics', 'physics', 'chemistry']),
     caps: safeJsonParse(row.caps, { status: 'Admission in Progress' }),
+    paymentReference: row.payment_reference || null,
+    paymentDate: row.payment_date || null,
     examHistory,
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -780,6 +825,121 @@ export function getCachedAlocCount(subject) {
   } catch (e) {
     return 0;
   }
+}
+
+// -------------------------------------------------------------
+// Payment Operations (Paystack Integration)
+// -------------------------------------------------------------
+export function recordPayment(payment) {
+  const db = getDatabase();
+  const id = payment.id || `pay_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+  const now = new Date().toISOString();
+
+  db.prepare(`
+    INSERT INTO student_payments (
+      id, candidate_id, candidate_name, candidate_email, reference,
+      amount_kobo, currency, status, channel, paid_at, gateway_response, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    payment.candidateId,
+    payment.candidateName || 'Candidate',
+    payment.candidateEmail || '',
+    payment.reference,
+    payment.amountKobo || 5000,
+    payment.currency || 'NGN',
+    payment.status || 'success',
+    payment.channel || 'card',
+    payment.paidAt || now,
+    payment.gatewayResponse || 'Successful',
+    now
+  );
+
+  return { id, ...payment, createdAt: now };
+}
+
+export function getPaymentByReference(reference) {
+  if (!reference) return null;
+  const db = getDatabase();
+  return db.prepare('SELECT * FROM student_payments WHERE reference = ?').get(reference);
+}
+
+export function getAllPayments() {
+  const db = getDatabase();
+  return db.prepare(`
+    SELECT id, candidate_id as candidateId, candidate_name as candidateName,
+           candidate_email as candidateEmail, reference, amount_kobo as amountKobo,
+           currency, status, channel, paid_at as paidAt,
+           gateway_response as gatewayResponse, created_at as createdAt
+    FROM student_payments
+    ORDER BY created_at DESC
+    LIMIT 200
+  `).all();
+}
+
+export function approveCandidateByPayment(candidateId, reference, paidAt = null) {
+  const db = getDatabase();
+  const now = new Date().toISOString();
+  const effectivePaidAt = paidAt || now;
+
+  db.prepare(`
+    UPDATE candidates
+    SET status = 'Approved',
+        payment_reference = ?,
+        payment_date = ?,
+        updated_at = ?
+    WHERE id = ?
+  `).run(reference, effectivePaidAt, now, candidateId);
+
+  return getCandidateById(candidateId);
+}
+
+export function getPaymentSettings() {
+  const db = getDatabase();
+  const row = db.prepare('SELECT * FROM payment_settings WHERE id = ?').get('primary');
+  if (row) {
+    return {
+      enabled: row.enabled === 1,
+      accessFeeNaira: row.access_fee_naira || 50,
+      paystackPublicKey: row.paystack_public_key || '',
+      paystackSecretKey: row.paystack_secret_key || ''
+    };
+  }
+  return {
+    enabled: true,
+    accessFeeNaira: 50,
+    paystackPublicKey: '',
+    paystackSecretKey: ''
+  };
+}
+
+// Public settings exposed to students - NEVER exposes secret key
+export function getPublicPaymentSettings() {
+  const settings = getPaymentSettings();
+  return {
+    enabled: settings.enabled,
+    accessFeeNaira: settings.accessFeeNaira,
+    paystackPublicKey: settings.paystackPublicKey
+  };
+}
+
+export function savePaymentSettings(settings) {
+  const db = getDatabase();
+  const now = new Date().toISOString();
+  const current = getPaymentSettings();
+
+  const enabled = settings.enabled !== undefined ? (settings.enabled ? 1 : 0) : (current.enabled ? 1 : 0);
+  const fee = settings.accessFeeNaira !== undefined ? parseInt(settings.accessFeeNaira, 10) : current.accessFeeNaira;
+  const pubKey = settings.paystackPublicKey !== undefined ? settings.paystackPublicKey.trim() : current.paystackPublicKey;
+  const secKey = settings.paystackSecretKey !== undefined ? settings.paystackSecretKey.trim() : current.paystackSecretKey;
+
+  db.prepare(`
+    INSERT OR REPLACE INTO payment_settings (
+      id, enabled, access_fee_naira, paystack_public_key, paystack_secret_key, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?)
+  `).run('primary', enabled, fee, pubKey, secKey, now);
+
+  return getPaymentSettings();
 }
 
 function safeJsonParse(str, fallback) {

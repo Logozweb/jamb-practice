@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { useExam } from '../../context/ExamContext';
 import { AVAILABLE_SUBJECTS } from '../../data/subjects';
 import { ChoicesModal } from '../modals/ChoicesModal';
+import { PaymentModal } from '../modals/PaymentModal';
 import {
   FileText,
   Award,
@@ -25,7 +26,8 @@ import {
   ShieldAlert,
   Edit3,
   Lock,
-  Info
+  Info,
+  CreditCard
 } from 'lucide-react';
 
 export const DashboardView = () => {
@@ -47,9 +49,18 @@ export const DashboardView = () => {
   const [photoError, setPhotoError] = useState('');
   const [photoSuccess, setPhotoSuccess] = useState(false);
   const [isChoicesModalOpen, setIsChoicesModalOpen] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [paymentTargetName, setPaymentTargetName] = useState('all portal services');
   const [mobileActiveMode, setMobileActiveMode] = useState('simulation_standard');
 
   if (!currentUser) return null;
+
+  const status = currentUser.status || 'Pending';
+
+  const triggerPaymentPrompt = (featureName) => {
+    setPaymentTargetName(featureName);
+    setIsPaymentModalOpen(true);
+  };
 
   const handleStartExamMode = (mode, length) => {
     if (status === 'Suspended' || currentUser.malpracticeBlocked) {
@@ -58,7 +69,7 @@ export const DashboardView = () => {
     }
 
     if (status === 'Pending') {
-      alert('Access Restricted: Your candidate registration is currently awaiting platform administrator approval. Examination features are locked until an administrator approves your registration.');
+      triggerPaymentPrompt('CBT Examinations & Mock Testing');
       return;
     }
     if (status === 'Disapproved') {
@@ -77,7 +88,7 @@ export const DashboardView = () => {
 
   const handleOpenSlip = () => {
     if (status !== 'Approved') {
-      alert('Registration Slip Locked: Your candidate examination slip is unlocked once a platform administrator verifies and approves your registration.');
+      triggerPaymentPrompt('Candidate Examination Slip');
       return;
     }
     setPhase('registration-slip');
@@ -85,7 +96,7 @@ export const DashboardView = () => {
 
   const handleOpenCaps = () => {
     if (status !== 'Approved') {
-      alert('JAMB CAPS Locked: Central Admission Processing System (CAPS) is locked while your account status is Pending.');
+      triggerPaymentPrompt('JAMB Central Admission Processing System (CAPS)');
       return;
     }
     setPhase('caps');
@@ -93,7 +104,7 @@ export const DashboardView = () => {
 
   const handleOpenResults = () => {
     if (status !== 'Approved') {
-      alert('Mock Results Service Locked: Access to test scoring records is locked while your account status is Pending.');
+      triggerPaymentPrompt('Mock Results & Scoring Records');
       return;
     }
     const hasHistory = (currentUser.examHistory && currentUser.examHistory.length > 0) || finalResult;
@@ -132,7 +143,7 @@ export const DashboardView = () => {
 
   const handleOpenChoices = () => {
     if (status !== 'Approved') {
-      alert('Institution Choices Locked: Preferred tertiary institutions and courses cannot be modified while your profile is awaiting administrator verification.');
+      triggerPaymentPrompt('Preferred Tertiary Institutions & Course Selection');
       return;
     }
     setIsChoicesModalOpen(true);
@@ -158,7 +169,6 @@ export const DashboardView = () => {
   };
 
   const latestScore = currentUser.examHistory?.[0]?.aggregateScore;
-  const status = currentUser.status || 'Approved';
 
   return (
     <div className="min-h-screen bg-[#F0F2F5] flex flex-col">
@@ -404,6 +414,39 @@ export const DashboardView = () => {
           </div>
         </div>
 
+        {/* Account Pending Approval Banner - Direct Paystack Unlock Option */}
+        {status === 'Pending' && !currentUser.malpracticeBlocked && (
+          <div className="bg-gradient-to-r from-amber-500/10 via-emerald-500/15 to-amber-500/10 border-2 border-amber-400 rounded-2xl p-4 sm:p-5 shadow-md flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in">
+            <div className="flex items-start sm:items-center gap-3.5">
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 to-amber-500 text-slate-900 flex items-center justify-center flex-shrink-0 shadow-md">
+                <CreditCard className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm sm:text-base font-black text-slate-900 uppercase">
+                    Account Status: Pending Approval
+                  </h2>
+                  <span className="px-2 py-0.5 rounded-full bg-amber-400 text-slate-900 text-[10px] font-black uppercase tracking-wider">
+                    Portal Locked
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 mt-0.5 max-w-xl">
+                  Unlock your portal immediately by paying the <strong>₦50</strong> activation fee via Paystack, or wait for manual Administrator verification.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => triggerPaymentPrompt('all portal features')}
+              className="w-full sm:w-auto px-5 py-2.5 bg-[#006633] hover:bg-[#004d25] text-white rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 flex-shrink-0"
+            >
+              <CreditCard className="w-4 h-4 text-amber-300" />
+              <span>Unlock Now (Pay ₦50)</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {/* Primary Action Hero: 4 Examination & Practice Modes */}
         <div className="bg-gradient-to-r from-[#004d25] to-[#006633] rounded-2xl text-white p-6 sm:p-8 shadow-xl relative overflow-hidden flex flex-col gap-6 border-2 border-amber-400">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 z-10 border-b border-white/10 pb-4">
@@ -422,7 +465,13 @@ export const DashboardView = () => {
             <div className="flex items-center gap-2 self-start md:self-auto flex-shrink-0">
               <button
                 type="button"
-                onClick={() => setPhase('setup')}
+                onClick={() => {
+                  if (status !== 'Approved') {
+                    triggerPaymentPrompt('Subject Combination Modification');
+                    return;
+                  }
+                  setPhase('setup');
+                }}
                 className="px-3.5 py-2 bg-white/15 hover:bg-white/25 text-amber-300 hover:text-white rounded-lg border border-amber-400/40 text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5"
               >
                 <BookOpen className="w-3.5 h-3.5" />
@@ -874,14 +923,22 @@ export const DashboardView = () => {
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => setPhase('setup')}
+                onClick={() => {
+                  if (status !== 'Approved') {
+                    triggerPaymentPrompt('Subject Combination Modification');
+                    return;
+                  }
+                  setPhase('setup');
+                }}
                 className="text-xs font-bold text-[#006633] hover:underline flex items-center gap-1"
               >
                 <Edit3 className="w-3.5 h-3.5" />
                 <span>Change Combination</span>
               </button>
-              <span className="text-xs text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                Approved
+              <span className={`text-xs font-bold px-2 py-0.5 rounded border ${
+                status === 'Approved' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-amber-50 text-amber-800 border-amber-200'
+              }`}>
+                {status}
               </span>
             </div>
           </div>
@@ -935,6 +992,13 @@ export const DashboardView = () => {
       <ChoicesModal
         isOpen={isChoicesModalOpen}
         onClose={() => setIsChoicesModalOpen(false)}
+      />
+
+      {/* Paystack Portal Activation Modal */}
+      <PaymentModal
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        targetActionName={paymentTargetName}
       />
     </div>
   );

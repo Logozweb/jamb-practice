@@ -17,6 +17,11 @@ import {
   disconnectGoogleAuth
 } from '../../services/emailService';
 import {
+  fetchAdminPaymentSettings,
+  saveAdminPaymentSettings,
+  fetchPaymentTransactions
+} from '../../services/paymentService';
+import {
   Users,
   CheckCircle2,
   XCircle,
@@ -45,7 +50,8 @@ import {
   Copy,
   ShieldAlert,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  CreditCard
 } from 'lucide-react';
 import { SearchableSelect } from '../common/SearchableSelect';
 
@@ -101,6 +107,48 @@ export const AdminDashboard = () => {
     } finally {
       setIsLoadingResults(false);
     }
+  };
+
+  // Paystack Payment & Gateway State
+  const [paymentConfig, setPaymentConfig] = useState({
+    enabled: true,
+    accessFeeNaira: 50,
+    paystackPublicKey: '',
+    paystackSecretKey: ''
+  });
+  const [paymentTransactions, setPaymentTransactions] = useState([]);
+  const [isLoadingPayments, setIsLoadingPayments] = useState(false);
+  const [paymentSearchTerm, setPaymentSearchTerm] = useState('');
+  const [paymentPage, setPaymentPage] = useState(1);
+  const [paymentSavedNotice, setPaymentSavedNotice] = useState(false);
+  const [showSecretKey, setShowSecretKey] = useState(false);
+
+  const loadPaymentData = async () => {
+    setIsLoadingPayments(true);
+    try {
+      const [settings, txs] = await Promise.all([
+        fetchAdminPaymentSettings(),
+        fetchPaymentTransactions()
+      ]);
+      if (settings) setPaymentConfig(settings);
+      if (Array.isArray(txs)) setPaymentTransactions(txs);
+    } catch (e) {
+      console.warn('Failed loading payment data:', e);
+    } finally {
+      setIsLoadingPayments(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPaymentData();
+  }, []);
+
+  const handleSavePaymentConfig = async (e) => {
+    e.preventDefault();
+    const updated = await saveAdminPaymentSettings(paymentConfig);
+    if (updated) setPaymentConfig(updated);
+    setPaymentSavedNotice(true);
+    setTimeout(() => setPaymentSavedNotice(false), 3000);
   };
 
   // Disapproval modal state
@@ -320,6 +368,21 @@ export const AdminDashboard = () => {
   const totalResultsPages = Math.max(1, Math.ceil(allExamSubmissions.length / resultsPerPage));
   const paginatedResults = allExamSubmissions.slice((resultsPage - 1) * resultsPerPage, resultsPage * resultsPerPage);
 
+  const filteredPayments = paymentTransactions.filter(p => {
+    const term = paymentSearchTerm.toLowerCase();
+    return (
+      (p.reference || '').toLowerCase().includes(term) ||
+      (p.candidateName || '').toLowerCase().includes(term) ||
+      (p.candidateEmail || '').toLowerCase().includes(term)
+    );
+  });
+  const paymentPerPage = 10;
+  const totalPaymentPages = Math.max(1, Math.ceil(filteredPayments.length / paymentPerPage));
+  const paginatedPayments = filteredPayments.slice((paymentPage - 1) * paymentPerPage, paymentPage * paymentPerPage);
+  const totalRevenueKobo = paymentTransactions
+    .filter(p => p.status === 'success')
+    .reduce((sum, p) => sum + (p.amountKobo || 0), 0);
+
   const handleConfirmDisapprove = () => {
     if (disapproveTargetId) {
       disapproveCandidate(disapproveTargetId, disapprovalReason);
@@ -496,6 +559,20 @@ export const AdminDashboard = () => {
             <span className="hidden sm:inline">Candidate Registrations</span>
             <span className="sm:hidden">Candidates</span>
             <span>({totalCandidates})</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab('payments'); loadPaymentData(); }}
+            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 font-bold text-xs sm:text-sm border-b-2 transition-all whitespace-nowrap ${
+              activeTab === 'payments'
+                ? 'border-[#006633] text-[#006633] bg-emerald-50/50 rounded-t-lg'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <CreditCard className="w-4 h-4" />
+            <span className="hidden sm:inline">Paystack Gateway &amp; Revenue</span>
+            <span className="sm:hidden">Paystack</span>
+            <span>({paymentTransactions.length})</span>
           </button>
 
           <button
@@ -817,6 +894,320 @@ export const AdminDashboard = () => {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* TAB: Paystack Payments & Revenue */}
+        {activeTab === 'payments' && (
+          <div className="bg-white rounded-b-xl rounded-tr-xl border border-slate-300 p-4 sm:p-6 shadow-sm space-y-6 animate-in fade-in">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
+              <div>
+                <h2 className="text-sm font-black uppercase text-slate-900 tracking-wider flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-[#006633]" />
+                  <span>Paystack Gateway &amp; Revenue Ledger</span>
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Configure student portal activation fees, manage Paystack API keys, and track real-time transaction verifications.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={loadPaymentData}
+                disabled={isLoadingPayments}
+                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold border border-slate-300 transition-all flex items-center gap-1.5 shadow-sm"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isLoadingPayments ? 'animate-spin' : ''}`} />
+                <span>Refresh Payments</span>
+              </button>
+            </div>
+
+            {/* Metrics Overview Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              <div className="p-4 bg-emerald-50 border-2 border-emerald-300 rounded-xl">
+                <div className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">Total Revenue</div>
+                <div className="text-xl sm:text-2xl font-black text-[#006633] mt-1 font-mono">
+                  ₦{(totalRevenueKobo / 100).toLocaleString()}
+                </div>
+                <div className="text-[10px] text-emerald-700 mt-0.5">Verified Paystack Collections</div>
+              </div>
+
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Attempts</div>
+                <div className="text-xl sm:text-2xl font-black text-slate-900 mt-1 font-mono">
+                  {paymentTransactions.length}
+                </div>
+                <div className="text-[10px] text-slate-500 mt-0.5">Total processed transactions</div>
+              </div>
+
+              <div className="p-4 bg-emerald-50/50 border border-emerald-200 rounded-xl">
+                <div className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Successful</div>
+                <div className="text-xl sm:text-2xl font-black text-emerald-600 mt-1 font-mono">
+                  {paymentTransactions.filter(p => p.status === 'success').length}
+                </div>
+                <div className="text-[10px] text-emerald-600 mt-0.5">Accounts unlocked automatically</div>
+              </div>
+
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                <div className="text-[11px] font-bold text-amber-800 uppercase tracking-wider">Current Fee</div>
+                <div className="text-xl sm:text-2xl font-black text-amber-900 mt-1 font-mono">
+                  ₦{paymentConfig.accessFeeNaira || 50}
+                </div>
+                <div className="text-[10px] text-amber-700 mt-0.5">Configured per student registration</div>
+              </div>
+            </div>
+
+            {/* Paystack Gateway Configuration Card */}
+            <div className="bg-slate-50 border-2 border-[#006633]/20 rounded-xl p-4 sm:p-5 space-y-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-slate-200 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-[#006633] text-white flex items-center justify-center font-bold text-xs shadow-sm">
+                    P
+                  </div>
+                  <div>
+                    <h3 className="text-xs sm:text-sm font-black uppercase text-slate-900">
+                      Paystack API Configuration
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      Keys are encrypted in SQLite on your server and verified server-to-server.
+                    </p>
+                  </div>
+                </div>
+
+                {paymentSavedNotice && (
+                  <span className="text-xs text-emerald-700 font-bold bg-emerald-100 px-3 py-1 rounded-full animate-in fade-in flex items-center gap-1">
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Paystack Settings Saved Successfully!</span>
+                  </span>
+                )}
+              </div>
+
+              <form onSubmit={handleSavePaymentConfig} className="space-y-4">
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="enablePaystack"
+                    checked={paymentConfig.enabled}
+                    onChange={(e) => setPaymentConfig(prev => ({ ...prev, enabled: e.target.checked }))}
+                    className="w-4 h-4 text-[#006633] rounded border-slate-300 focus:ring-[#006633]"
+                  />
+                  <label htmlFor="enablePaystack" className="text-xs font-bold text-slate-800 cursor-pointer">
+                    Require Paystack Activation to Unlock Student Portal
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                      Portal Unlock Fee (₦)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={paymentConfig.accessFeeNaira || 50}
+                      onChange={(e) => setPaymentConfig(prev => ({ ...prev, accessFeeNaira: parseInt(e.target.value, 10) || 50 }))}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono font-bold bg-white focus:outline-none focus:border-[#006633]"
+                      placeholder="50"
+                    />
+                    <span className="text-[10px] text-slate-500 mt-0.5 block">Test fee is currently ₦50</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                      Paystack Public Key (Frontend)
+                    </label>
+                    <input
+                      type="text"
+                      value={paymentConfig.paystackPublicKey || ''}
+                      onChange={(e) => setPaymentConfig(prev => ({ ...prev, paystackPublicKey: e.target.value }))}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono bg-white focus:outline-none focus:border-[#006633]"
+                      placeholder="pk_test_... or pk_live_..."
+                    />
+                    <span className="text-[10px] text-slate-500 mt-0.5 block">Used to initiate inline popup</span>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase">
+                        Paystack Secret Key (Server)
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setShowSecretKey(!showSecretKey)}
+                        className="text-[10px] text-emerald-800 font-bold hover:underline"
+                      >
+                        {showSecretKey ? 'Hide' : 'Show'}
+                      </button>
+                    </div>
+                    <input
+                      type={showSecretKey ? 'text' : 'password'}
+                      value={paymentConfig.paystackSecretKey || ''}
+                      onChange={(e) => setPaymentConfig(prev => ({ ...prev, paystackSecretKey: e.target.value }))}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono bg-white focus:outline-none focus:border-[#006633]"
+                      placeholder="sk_test_... or sk_live_..."
+                    />
+                    <span className="text-[10px] text-slate-500 mt-0.5 block">Used for backend server verification</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <div className="text-[11px] text-slate-500">
+                    Get your keys from{' '}
+                    <a
+                      href="https://dashboard.paystack.com/#/settings/developer"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#006633] font-bold hover:underline inline-flex items-center gap-0.5"
+                    >
+                      <span>Paystack Dashboard Settings</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-[#006633] hover:bg-[#004d25] text-white rounded-lg text-xs font-bold shadow transition-all flex items-center gap-1.5"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Save Gateway Settings</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Live Transactions Table */}
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <h3 className="text-xs sm:text-sm font-black uppercase text-slate-900 tracking-wider">
+                  Transaction Audit History ({paymentTransactions.length})
+                </h3>
+
+                <div className="w-full sm:w-72 relative">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={paymentSearchTerm}
+                    onChange={(e) => { setPaymentSearchTerm(e.target.value); setPaymentPage(1); }}
+                    placeholder="Search reference, student, or email..."
+                    className="w-full pl-8 pr-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-slate-50 focus:bg-white focus:outline-none focus:border-[#006633]"
+                  />
+                </div>
+              </div>
+
+              {paginatedPayments.length === 0 ? (
+                <div className="p-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-300">
+                  <CreditCard className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                  <div className="text-xs font-bold text-slate-600">No payment transactions recorded yet</div>
+                  <p className="text-[11px] text-slate-400 max-w-sm mx-auto mt-1">
+                    When registered candidates initiate and complete Paystack portal activation payments, all verified records and timestamps will appear here automatically.
+                  </p>
+                </div>
+              ) : (
+                <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200">
+                        <tr>
+                          <th className="p-3">Reference ID</th>
+                          <th className="p-3">Candidate</th>
+                          <th className="p-3 text-right">Amount</th>
+                          <th className="p-3 text-center">Channel</th>
+                          <th className="p-3">Date &amp; Time</th>
+                          <th className="p-3 text-center">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200">
+                        {paginatedPayments.map((p) => (
+                          <tr key={p.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="p-3 font-mono font-bold text-slate-800">
+                              {p.reference}
+                            </td>
+                            <td className="p-3">
+                              <div className="font-bold text-slate-900 uppercase">{p.candidateName || 'Candidate'}</div>
+                              <div className="text-[10px] text-slate-500 font-mono">{p.candidateEmail}</div>
+                            </td>
+                            <td className="p-3 text-right font-mono font-bold text-slate-900">
+                              ₦{(p.amountKobo / 100).toLocaleString()}
+                            </td>
+                            <td className="p-3 text-center">
+                              <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 uppercase font-mono text-[10px] font-bold">
+                                {p.channel || 'card'}
+                              </span>
+                            </td>
+                            <td className="p-3 text-slate-600 font-mono text-[11px]">
+                              {p.paidAt ? new Date(p.paidAt).toLocaleString() : new Date(p.createdAt).toLocaleString()}
+                            </td>
+                            <td className="p-3 text-center">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase inline-flex items-center gap-1 ${
+                                p.status === 'success'
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-rose-100 text-rose-800'
+                              }`}>
+                                {p.status === 'success' ? (
+                                  <>
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                    <span>Verified</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <XCircle className="w-3 h-3 text-rose-600" />
+                                    <span>Failed</span>
+                                  </>
+                                )}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination Controls */}
+                  {totalPaymentPages > 1 && (
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 bg-slate-50 border-t border-slate-200 text-xs text-slate-600">
+                      <div>
+                        Showing <strong>{(paymentPage - 1) * paymentPerPage + 1}</strong> to{' '}
+                        <strong>{Math.min(paymentPage * paymentPerPage, filteredPayments.length)}</strong> of{' '}
+                        <strong>{filteredPayments.length}</strong> transactions
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setPaymentPage(p => Math.max(1, p - 1))}
+                          disabled={paymentPage === 1}
+                          className={`px-3 py-1.5 rounded-lg border font-bold flex items-center gap-1 transition-all ${
+                            paymentPage === 1
+                              ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                              : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300 shadow-sm'
+                          }`}
+                        >
+                          <ChevronLeft className="w-3.5 h-3.5" />
+                          <span>Prev</span>
+                        </button>
+                        <span className="font-mono text-xs px-2">
+                          Page {paymentPage} of {totalPaymentPages}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setPaymentPage(p => Math.min(totalPaymentPages, p + 1))}
+                          disabled={paymentPage === totalPaymentPages}
+                          className={`px-3 py-1.5 rounded-lg border font-bold flex items-center gap-1 transition-all ${
+                            paymentPage === totalPaymentPages
+                              ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                              : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300 shadow-sm'
+                          }`}
+                        >
+                          <span>Next</span>
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
 

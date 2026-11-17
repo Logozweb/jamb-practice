@@ -231,6 +231,148 @@ export function databaseApiPlugin(env = {}) {
             return sendJson(res, 200, logs);
           }
 
+          // -------------------------------------------------------------
+          // Paystack Payment Gateway & Transaction Verification
+          // -------------------------------------------------------------
+          if (pathname === '/api/payment/public-settings' && method === 'GET') {
+            const settings = db.getPublicPaymentSettings();
+            return sendJson(res, 200, { success: true, settings });
+          }
+
+          if (pathname === '/api/payment/settings' && method === 'GET') {
+            if (!requireAdminAuth(req, res)) return;
+            const settings = db.getPaymentSettings();
+            return sendJson(res, 200, { success: true, settings });
+          }
+
+          if (pathname === '/api/payment/settings' && method === 'POST') {
+            if (!requireAdminAuth(req, res)) return;
+            const body = await readBody(req);
+            const saved = db.savePaymentSettings(body);
+            return sendJson(res, 200, { success: true, settings: saved });
+          }
+
+          if (pathname === '/api/payment/transactions' && method === 'GET') {
+            if (!requireAdminAuth(req, res)) return;
+            const payments = db.getAllPayments();
+            return sendJson(res, 200, { success: true, payments });
+          }
+
+          if (pathname === '/api/payment/verify' && method === 'POST') {
+            const ip = getClientIp(req);
+            const rateCheck = checkRateLimit(`payment_verify_${ip}`, 15, 5 * 60 * 1000);
+            if (!rateCheck.allowed) {
+              return sendJson(res, 429, { success: false, error: 'Too many verification attempts. Please wait a few moments.' });
+            }
+
+            const body = await readBody(req);
+            const { reference, candidateId } = body;
+
+            if (!reference || !candidateId) {
+              return sendJson(res, 400, { success: false, error: 'Missing payment reference or candidate ID.' });
+            }
+
+            const cleanRef = reference.trim();
+            const candidate = db.getCandidateById(candidateId);
+            if (!candidate) {
+              return sendJson(res, 404, { success: false, error: 'Candidate profile not found.' });
+            }
+
+            // Anti-Replay: Prevent reusing already processed transaction references
+            const existing = db.getPaymentByReference(cleanRef);
+            if (existing && existing.status === 'success') {
+              return sendJson(res, 400, {
+                success: false,
+                error: 'This payment reference has already been processed and credited.'
+              });
+            }
+
+            const pSettings = db.getPaymentSettings();
+            const secretKey = (pSettings.paystackSecretKey || process.env.PAYSTACK_SECRET_KEY || '').trim();
+            const expectedKobo = (pSettings.accessFeeNaira || 50) * 100;
+
+            let paymentSuccess = false;
+            let paymentDetails = {
+              candidateId,
+              candidateName: candidate.name,
+              candidateEmail: candidate.email,
+              reference: cleanRef,
+              amountKobo: expectedKobo,
+              currency: 'NGN',
+              status: 'failed',
+              channel: 'card',
+              paidAt: new Date().toISOString(),
+              gatewayResponse: 'Pending Verification'
+            };
+
+            if (secretKey) {
+              // Real Paystack Server-to-Server Verification using Paystack Secret Key
+              try {
+                const paystackRes = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(cleanRef)}`, {
+                  method: 'GET',
+                  headers: {
+                    'Authorization': `Bearer ${secretKey}`,
+                    'Content-Type': 'application/json'
+                  }
+                });
+
+                const paystackData = await paystackRes.json();
+
+                if (!paystackRes.ok || !paystackData.status || paystackData.data?.status !== 'success') {
+                  const errMsg = paystackData.data?.gateway_response || paystackData.message || 'Payment verification failed on Paystack.';
+                  paymentDetails.gatewayResponse = errMsg;
+                  db.recordPayment(paymentDetails);
+                  return sendJson(res, 400, { success: false, error: errMsg });
+                }
+
+                // Verify amount (prevent underpayment tampering) and currency
+                const paidKobo = paystackData.data.amount;
+                const paidCurrency = paystackData.data.currency;
+
+                if (paidCurrency !== 'NGN') {
+                  paymentDetails.gatewayResponse = `Invalid currency received: ${paidCurrency}`;
+                  db.recordPayment(paymentDetails);
+                  return sendJson(res, 400, { success: false, error: 'Invalid payment currency.' });
+                }
+
+                if (paidKobo < expectedKobo) {
+                  paymentDetails.gatewayResponse = `Amount paid (₦${paidKobo / 100}) is less than required fee (₦${expectedKobo / 100})`;
+                  db.recordPayment(paymentDetails);
+                  return sendJson(res, 400, { success: false, error: 'Amount paid is less than the required portal unlock fee.' });
+                }
+
+                paymentSuccess = true;
+                paymentDetails.amountKobo = paidKobo;
+                paymentDetails.currency = paidCurrency;
+                paymentDetails.status = 'success';
+                paymentDetails.channel = paystackData.data.channel || 'card';
+                paymentDetails.paidAt = paystackData.data.paid_at || new Date().toISOString();
+                paymentDetails.gatewayResponse = paystackData.data.gateway_response || 'Successful';
+              } catch (networkErr) {
+                console.error('Paystack network verification error:', networkErr);
+                return sendJson(res, 502, { success: false, error: 'Could not contact Paystack verification servers. Please try again.' });
+              }
+            } else {
+              // Simulated Test Mode (when administrator hasn't added live Paystack Secret Key yet)
+              paymentSuccess = true;
+              paymentDetails.status = 'success';
+              paymentDetails.gatewayResponse = 'Successful (Test Simulation)';
+            }
+
+            if (paymentSuccess) {
+              db.recordPayment(paymentDetails);
+              const updatedCandidate = db.approveCandidateByPayment(candidateId, cleanRef, paymentDetails.paidAt);
+              return sendJson(res, 200, {
+                success: true,
+                message: 'Payment verified successfully! Your account has been approved and all features are unlocked.',
+                candidate: updatedCandidate,
+                payment: paymentDetails
+              });
+            }
+
+            return sendJson(res, 400, { success: false, error: 'Payment could not be verified.' });
+          }
+
           if (pathname === '/api/email-outbox' && method === 'DELETE') {
             if (!requireAdminAuth(req, res)) return;
             req.resume();
