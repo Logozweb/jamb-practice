@@ -128,13 +128,20 @@ export function cleanHtml(rawHtml) {
   });
 
   // 7. Structural HTML tags to linebreaks
-  str = str.replace(/<br\s*[\/]?>/gi, '\n');
+  str = str.replace(/<br\s*\/?>/gi, '\n');
   str = str.replace(/<\/p>/gi, '\n\n');
   str = str.replace(/<\/div>/gi, '\n');
   str = str.replace(/<li[^>]*>/gi, '\n• ');
 
-  // 8. Strip remaining HTML tags
-  str = str.replace(/<[^>]*>/g, '');
+  // 8. Strip remaining HTML tags iteratively until none remain (prevents incomplete multi-character injection)
+  let previous;
+  do {
+    previous = str;
+    str = str.replace(/<[^>]*>/g, '');
+  } while (str !== previous);
+
+  // Strip any residual unclosed/dangling angle brackets
+  str = str.replace(/[<>]/g, '');
 
   // 9. Clean excessive horizontal spaces, preserving newlines
   str = str.replace(/[ \t]+/g, ' ');
