@@ -340,6 +340,21 @@ export const ExamProvider = ({ children }) => {
     return null;
   });
 
+  // Refresh candidates from persistent SQLite database
+  const refreshCandidates = async () => {
+    try {
+      const dbCandidates = await apiGetCandidates();
+      if (Array.isArray(dbCandidates)) {
+        const sanitized = dbCandidates.map(sanitizeCandidate);
+        setCandidates(sanitized);
+        return sanitized;
+      }
+    } catch (e) {
+      console.warn('Failed refreshing candidates from DB:', e);
+    }
+    return [];
+  };
+
   const adminLogin = async (email, password) => {
     const cleanEmail = (email || '').toLowerCase().trim();
     const admin = adminUsers.find(
@@ -353,6 +368,7 @@ export const ExamProvider = ({ children }) => {
         localStorage.setItem('jamb_is_admin', 'true');
         localStorage.setItem('jamb_active_admin_id', admin.id);
       } catch (e) {}
+      await refreshCandidates();
       setPhase('admin');
       return { success: true };
     }
@@ -370,6 +386,7 @@ export const ExamProvider = ({ children }) => {
         localStorage.setItem('jamb_is_admin', 'true');
         localStorage.setItem('jamb_active_admin_id', remote.admin.id);
       } catch (e) {}
+      await refreshCandidates();
       setPhase('admin');
       return { success: true };
     }
@@ -1204,6 +1221,7 @@ export const ExamProvider = ({ children }) => {
         currentUser,
         candidate: currentUser,
         candidates,
+        refreshCandidates,
         login,
         registerCandidate,
         logout,

@@ -58,6 +58,7 @@ import { SearchableSelect } from '../common/SearchableSelect';
 export const AdminDashboard = () => {
   const {
     candidates,
+    refreshCandidates,
     approveCandidate,
     disapproveCandidate,
     deleteCandidate,
@@ -140,6 +141,7 @@ export const AdminDashboard = () => {
   };
 
   useEffect(() => {
+    refreshCandidates();
     loadPaymentData();
   }, []);
 
@@ -548,7 +550,7 @@ export const AdminDashboard = () => {
         {/* Tab Navigation */}
         <div className="flex border-b border-slate-300 gap-1 sm:gap-2 overflow-x-auto bg-white px-2 sm:px-4 pt-1.5 sm:pt-2 rounded-t-xl shadow-sm">
           <button
-            onClick={() => setActiveTab('candidates')}
+            onClick={() => { setActiveTab('candidates'); refreshCandidates(); }}
             className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 font-bold text-xs sm:text-sm border-b-2 transition-all whitespace-nowrap ${
               activeTab === 'candidates'
                 ? 'border-[#006633] text-[#006633] bg-emerald-50/50 rounded-t-lg'
@@ -663,8 +665,17 @@ export const AdminDashboard = () => {
 
                 <button
                   type="button"
+                  onClick={refreshCandidates}
+                  className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold border border-slate-300 transition-all flex items-center gap-1.5 shadow-sm whitespace-nowrap ml-auto"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 text-slate-600" />
+                  <span>Refresh List</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => { setIsAddCandidateOpen(true); setNewCandError(''); }}
-                  className="px-3.5 py-2 bg-[#006633] hover:bg-[#00552b] text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm whitespace-nowrap ml-auto"
+                  className="px-3.5 py-2 bg-[#006633] hover:bg-[#00552b] text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm whitespace-nowrap"
                 >
                   <UserPlus className="w-3.5 h-3.5" />
                   <span>Register Candidate</span>
