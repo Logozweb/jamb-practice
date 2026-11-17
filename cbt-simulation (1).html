@@ -852,6 +852,10 @@ function quickStart() {
 let E = {}; // exam state
 
 function startExamFor(subjectId, year, mode) {
+  const allowedSubjects = SUBJECTS_META.map(s => s.id);
+  if (!allowedSubjects.includes(subjectId)) subjectId = allowedSubjects[0];
+  mode = (mode === "exam" || mode === "practice") ? mode : "exam";
+
   let pool = [...(BANK[subjectId] || [])];
   if (year !== "all") pool = pool.filter(q => q.year == year);
   if (!pool.length) { alert("No questions for that filter. Try All Years."); return; }
@@ -1006,16 +1010,29 @@ async function submitExam() {
       <div class="rs"><div class="rs-val a">${skipped}</div><div class="rs-lbl">Skipped</div></div>
     </div>
     <div class="res-actions">
-      <button class="btn-res p" onclick="startExamFor('${E.subjectId}','all','${E.mode}')">Try Again</button>
-      <button class="btn-res s" onclick="showPage('home')">Home</button>
+      <button id="btn-try-again" class="btn-res p">Try Again</button>
+      <button id="btn-home" class="btn-res s">Home</button>
     </div>
     <div style="text-align:center;margin-bottom:1.25rem">
-      <button class="btn-res s" style="width:100%" onclick="showPage('leaderboard')">🏆 View Leaderboard</button>
+      <button id="btn-leaderboard" class="btn-res s" style="width:100%">🏆 View Leaderboard</button>
     </div>
     <div class="review-section">
       <div class="review-header">📋 Question Review</div>
       ${review}
     </div>`;
+
+  const tryAgainBtn = document.getElementById("btn-try-again");
+  if (tryAgainBtn) {
+    tryAgainBtn.addEventListener("click", () => startExamFor(E.subjectId, "all", E.mode));
+  }
+  const homeBtn = document.getElementById("btn-home");
+  if (homeBtn) {
+    homeBtn.addEventListener("click", () => showPage("home"));
+  }
+  const leaderboardBtn = document.getElementById("btn-leaderboard");
+  if (leaderboardBtn) {
+    leaderboardBtn.addEventListener("click", () => showPage("leaderboard"));
+  }
 
   document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
   document.getElementById("result-screen").classList.add("active");
