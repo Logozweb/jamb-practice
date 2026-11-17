@@ -135,9 +135,13 @@ export const ExamProvider = ({ children }) => {
           }
           if (dbSettings.alocApiKey !== undefined) {
             setAlocApiKey(dbSettings.alocApiKey);
-            localStorage.setItem('jamb_aloc_api_key', dbSettings.alocApiKey);
           }
         }
+
+        // Clean up any legacy cleartext API key from client storage
+        try {
+          localStorage.removeItem('jamb_aloc_api_key');
+        } catch (e) {}
 
         if (Array.isArray(dbAdmins) && dbAdmins.length > 0) {
           setAdminUsers(dbAdmins);
@@ -220,11 +224,14 @@ export const ExamProvider = ({ children }) => {
 
   // Live JAMB API (ALOC) Settings
   const [apiSource, setApiSource] = useState(() => {
-    return localStorage.getItem('jamb_api_source') || 'offline';
+    try {
+      return localStorage.getItem('jamb_api_source') || 'offline';
+    } catch (e) {
+      return 'offline';
+    }
   });
-  const [alocApiKey, setAlocApiKey] = useState(() => {
-    return localStorage.getItem('jamb_aloc_api_key') || '';
-  });
+  // Keep API credentials in memory/DB only - never in unencrypted cleartext localStorage
+  const [alocApiKey, setAlocApiKey] = useState('');
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
   const [apiFetchNotice, setApiFetchNotice] = useState(null);
   const [isApiSettingsOpen, setIsApiSettingsOpen] = useState(false);
@@ -233,13 +240,16 @@ export const ExamProvider = ({ children }) => {
   const [examSettings, setExamSettings] = useState(() => {
     try {
       const saved = localStorage.getItem('jamb_exam_settings');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        delete parsed.alocApiKey;
+        return parsed;
+      }
     } catch (e) {}
     return {
       durationMinutes: 120,
       questionCountMode: 'standard',
-      apiSource: localStorage.getItem('jamb_api_source') || 'offline',
-      alocApiKey: localStorage.getItem('jamb_aloc_api_key') || '',
+      apiSource: 'offline',
       allowStudentPracticeMode: true,
       requireApprovalToSit: false
     };
@@ -249,14 +259,18 @@ export const ExamProvider = ({ children }) => {
     setExamSettings(prev => {
       const merged = { ...prev, ...newSettings };
       try {
-        localStorage.setItem('jamb_exam_settings', JSON.stringify(merged));
+        // Exclude sensitive credentials like API keys from persistent cleartext localStorage
+        const sanitizedForStorage = { ...merged };
+        delete sanitizedForStorage.alocApiKey;
+        localStorage.setItem('jamb_exam_settings', JSON.stringify(sanitizedForStorage));
+
         if (merged.apiSource) {
           localStorage.setItem('jamb_api_source', merged.apiSource);
           setApiSource(merged.apiSource);
         }
         if (merged.alocApiKey !== undefined) {
-          localStorage.setItem('jamb_aloc_api_key', merged.alocApiKey);
           setAlocApiKey(merged.alocApiKey);
+          localStorage.removeItem('jamb_aloc_api_key');
         }
         if (merged.questionCountMode) {
           setExamLength(merged.questionCountMode);

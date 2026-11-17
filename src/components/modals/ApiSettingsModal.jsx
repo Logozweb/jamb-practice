@@ -11,7 +11,8 @@ export const ApiSettingsModal = () => {
     setApiSource,
     alocApiKey,
     setAlocApiKey,
-    isAdminLoggedIn
+    isAdminLoggedIn,
+    updateExamSettings
   } = useExam();
 
   const [tempKey, setTempKey] = useState(alocApiKey || '');
@@ -34,10 +35,20 @@ export const ApiSettingsModal = () => {
   };
 
   const handleSave = () => {
-    setApiSource(tempSource);
-    setAlocApiKey(tempKey.trim());
-    localStorage.setItem('jamb_api_source', tempSource);
-    localStorage.setItem('jamb_aloc_api_key', tempKey.trim());
+    if (updateExamSettings) {
+      updateExamSettings({
+        apiSource: tempSource,
+        alocApiKey: tempKey.trim()
+      });
+    } else {
+      setApiSource(tempSource);
+      setAlocApiKey(tempKey.trim());
+    }
+    try {
+      localStorage.setItem('jamb_api_source', tempSource);
+      // Remove sensitive API credentials from cleartext localStorage (prevents CWE-312)
+      localStorage.removeItem('jamb_aloc_api_key');
+    } catch (e) {}
     setIsApiSettingsOpen(false);
   };
 

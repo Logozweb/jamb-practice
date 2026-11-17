@@ -56,6 +56,16 @@ export const getEmailSettings = () => {
   return DEFAULT_EMAIL_SETTINGS;
 };
 
+function sanitizeSettingsForStorage(settings) {
+  if (!settings) return null;
+  const clone = JSON.parse(JSON.stringify(settings));
+  if (clone.smtp) clone.smtp.pass = '';
+  if (clone.gmail) clone.gmail.refreshToken = '';
+  clone.resendApiKey = '';
+  if (clone.webhook) clone.webhook.authHeader = '';
+  return clone;
+}
+
 // Async getter from SQLite Database
 export const fetchEmailSettings = async () => {
   try {
@@ -65,7 +75,8 @@ export const fetchEmailSettings = async () => {
     if (res.ok) {
       const data = await res.json();
       cachedEmailSettings = { ...DEFAULT_EMAIL_SETTINGS, ...data };
-      localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(cachedEmailSettings));
+      const safe = sanitizeSettingsForStorage(cachedEmailSettings);
+      localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(safe));
       return cachedEmailSettings;
     }
   } catch (err) {
@@ -78,7 +89,8 @@ export const fetchEmailSettings = async () => {
 export const saveEmailSettings = async (settings) => {
   cachedEmailSettings = { ...DEFAULT_EMAIL_SETTINGS, ...settings };
   try {
-    localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(cachedEmailSettings));
+    const safe = sanitizeSettingsForStorage(cachedEmailSettings);
+    localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(safe));
     const res = await fetch('/api/email-settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },

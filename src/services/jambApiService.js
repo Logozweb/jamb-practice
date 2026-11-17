@@ -409,7 +409,7 @@ async function fetchSingleAlocBatch(subjectId, limit = 15, year = null, token) {
  * to accumulate up to the required count (e.g. 40 or 60 questions).
  */
 export async function fetchAlocQuestions(subjectId, count = 40, apiKey = null) {
-  const rawToken = apiKey || (typeof localStorage !== 'undefined' ? localStorage.getItem('jamb_aloc_api_key') : '') || '';
+  const rawToken = apiKey || '';
   const token = rawToken.trim().replace(/^["']|["']$/g, '');
 
   // 1. Try our high-speed SQLite-backed local endpoint (serves cached ALOC questions + batches remote requests safely using DB API key)
