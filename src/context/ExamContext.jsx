@@ -24,7 +24,7 @@ export const ExamProvider = ({ children }) => {
   // Candidate Accounts & Auth State (Real Data only - no mock accounts)
   const sanitizeCandidate = (c) => {
     if (!c) return c;
-    const { nin, ...rest } = c;
+    const { nin, password, ...rest } = c;
     return {
       ...rest,
       examDate: 'Flexible / Unlimited On-Demand',
@@ -156,10 +156,14 @@ export const ExamProvider = ({ children }) => {
   const [examMode, setExamMode] = useState('simulation'); // 'simulation' (strict JAMB) or 'practice'
   const [examLength, setExamLength] = useState('standard'); // 'standard' (180 questions) or 'quick' (45 questions)
 
-  // Keep candidates in localStorage
+  // Keep candidates in localStorage (strictly without passwords or sensitive credentials)
   useEffect(() => {
     try {
-      localStorage.setItem('jamb_candidates_db', JSON.stringify(candidates));
+      const sanitizedCandidates = candidates.map(c => {
+        const { password, ...safe } = c;
+        return safe;
+      });
+      localStorage.setItem('jamb_candidates_db', JSON.stringify(sanitizedCandidates));
     } catch (e) {
       console.warn('Error writing candidates to storage', e);
     }
@@ -936,9 +940,18 @@ export const ExamProvider = ({ children }) => {
     const resultId = `${isFullMock ? 'mock' : 'attempt'}_${Date.now()}`;
     const dateTaken = new Date().toISOString();
 
+    const sanitizedCandidateForSlip = currentUser ? {
+      id: currentUser.id,
+      name: currentUser.name || 'Candidate',
+      regNumber: currentUser.regNumber || 'N/A',
+      seatNumber: currentUser.seatNumber || 'N/A',
+      center: currentUser.center || 'ONLINE JAMB CBT SIMULATION',
+      passport: currentUser.passport || ''
+    } : null;
+
     const resultSummary = {
       id: resultId,
-      candidate: currentUser,
+      candidate: sanitizedCandidateForSlip,
       completedAt: dateTaken,
       dateTaken,
       timeSpentSeconds,

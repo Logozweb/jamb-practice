@@ -265,9 +265,9 @@ export function saveCandidate(candidate) {
   const now = new Date().toISOString();
 
   const id = candidate.id || `cand_${Date.now()}`;
-  const regNumber = candidate.regNumber || ('2026' + Math.floor(10000000 + Math.random() * 90000000) + 'EB');
-  const profileCode = candidate.profileCode || ('55019' + Math.floor(10000 + Math.random() * 90000));
-  const seatNumber = candidate.seatNumber || (`A-0${Math.floor(10 + Math.random() * 89)}`);
+  const regNumber = candidate.regNumber || ('2026' + crypto.randomInt(10000000, 100000000) + 'EB');
+  const profileCode = candidate.profileCode || ('55019' + crypto.randomInt(10000, 100000));
+  const seatNumber = candidate.seatNumber || (`A-0${crypto.randomInt(10, 99)}`);
   const center = 'ONLINE JAMB CBT SIMULATION';
   const passport = candidate.passport || `https://ui-avatars.com/api/?name=${encodeURIComponent(candidate.name || 'Candidate')}&background=006633&color=fff&size=200`;
 
@@ -619,7 +619,7 @@ export function saveEmailSettingsToDb(settings) {
 
 export function saveEmailOutboxLog(entry) {
   const db = getDatabase();
-  const id = entry.id || `outbox_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const id = entry.id || `outbox_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
   const now = entry.timestamp || new Date().toISOString();
   db.prepare(`
     INSERT INTO email_outbox (id, recipient_email, candidate_name, otp_code, status, provider, details, timestamp)
@@ -666,8 +666,8 @@ export function createOtpInDb(email, candidateName = 'Candidate', purpose = 'reg
   const cleanEmail = email.trim().toLowerCase();
   const now = new Date();
   const expiresAt = new Date(now.getTime() + 15 * 60 * 1000); // 15 mins expiration
-  const code = Math.floor(100000 + Math.random() * 900000).toString();
-  const id = `otp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const code = crypto.randomInt(100000, 1000000).toString();
+  const id = `otp_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
 
   // Invalidate any older pending OTP for this email & purpose
   db.prepare('UPDATE otp_verifications SET verified = -1 WHERE email = ? AND purpose = ? AND verified = 0').run(cleanEmail, purpose);
@@ -759,7 +759,7 @@ export function saveCachedAlocQuestions(subject, questions) {
       try {
         const sig = (q.text || q.question || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 50);
         if (!sig) continue;
-        const id = q.id || `aloc_${subject}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        const id = q.id || `aloc_${subject}_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
         const year = q.year || q.examyear || null;
         insert.run(id, subject, year, sig, JSON.stringify(q), now);
         count++;

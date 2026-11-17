@@ -100,8 +100,17 @@ export const DashboardView = () => {
     if (hasHistory) {
       if (!finalResult && currentUser.examHistory?.length > 0) {
         const latest = currentUser.examHistory[0];
+        const sanitizedCandidateForSlip = currentUser ? {
+          id: currentUser.id,
+          name: currentUser.name || 'Candidate',
+          regNumber: currentUser.regNumber || 'N/A',
+          seatNumber: currentUser.seatNumber || 'N/A',
+          center: currentUser.center || 'ONLINE JAMB CBT SIMULATION',
+          passport: currentUser.passport || ''
+        } : null;
+
         const reconstructed = {
-          candidate: currentUser,
+          candidate: sanitizedCandidateForSlip,
           completedAt: latest.dateTaken || latest.date || new Date().toISOString(),
           timeSpentSeconds: latest.timeSpentSeconds || 0,
           aggregateScore: latest.aggregateScore || 0,
