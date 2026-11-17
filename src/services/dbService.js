@@ -206,3 +206,47 @@ export async function apiUpdateAdminPassword(email, newPassword) {
     return false;
   }
 }
+
+// -------------------------------------------------------------
+// Candidate Malpractice Appeals API
+// -------------------------------------------------------------
+export async function apiSubmitAppeal(candidateId, reason) {
+  try {
+    const res = await fetch('/api/appeals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ candidateId, reason })
+    });
+    return await res.json();
+  } catch (err) {
+    return { success: false, error: 'Could not connect to server to submit appeal.' };
+  }
+}
+
+export async function apiGetAppeals() {
+  try {
+    const res = await fetch('/api/appeals', {
+      headers: { ...getAdminAuthHeaders() }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data.appeals || [];
+    }
+  } catch (err) {
+    console.warn('Failed fetching appeals:', err);
+  }
+  return [];
+}
+
+export async function apiResolveAppeal(appealId, action, adminNotes = '') {
+  try {
+    const res = await fetch('/api/appeals/resolve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
+      body: JSON.stringify({ appealId, action, adminNotes })
+    });
+    return await res.json();
+  } catch (err) {
+    return { success: false, error: 'Failed communicating appeal resolution to server.' };
+  }
+}

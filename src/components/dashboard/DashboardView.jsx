@@ -3,6 +3,7 @@ import { useExam } from '../../context/ExamContext';
 import { AVAILABLE_SUBJECTS } from '../../data/subjects';
 import { ChoicesModal } from '../modals/ChoicesModal';
 import { PaymentModal } from '../modals/PaymentModal';
+import { AppealModal } from '../modals/AppealModal';
 import {
   FileText,
   Award,
@@ -27,7 +28,8 @@ import {
   Edit3,
   Lock,
   Info,
-  CreditCard
+  CreditCard,
+  Send
 } from 'lucide-react';
 
 export const DashboardView = () => {
@@ -50,12 +52,14 @@ export const DashboardView = () => {
   const [photoSuccess, setPhotoSuccess] = useState(false);
   const [isChoicesModalOpen, setIsChoicesModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [isAppealModalOpen, setIsAppealModalOpen] = useState(false);
   const [paymentTargetName, setPaymentTargetName] = useState('all portal services');
   const [mobileActiveMode, setMobileActiveMode] = useState('simulation_standard');
 
   if (!currentUser) return null;
 
   const status = currentUser.status || 'Pending';
+  const isMalpracticeSanctioned = status === 'Suspended' || status === 'Disapproved' || status === 'Banned' || Boolean(currentUser.malpracticeBlocked);
 
   const triggerPaymentPrompt = (featureName) => {
     setPaymentTargetName(featureName);
@@ -63,17 +67,13 @@ export const DashboardView = () => {
   };
 
   const handleStartExamMode = (mode, length) => {
-    if (status === 'Suspended' || currentUser.malpracticeBlocked) {
-      alert('EXAMINATION ACCESS BLOCKED:\nYour account has been suspended for examination malpractice due to repeated navigation / fullscreen violations.\n\nYou cannot sit for or start any examination until a Platform Administrator reviews and reinstates your account clearance.');
+    if (isMalpracticeSanctioned) {
+      setIsAppealModalOpen(true);
       return;
     }
 
     if (status === 'Pending') {
       triggerPaymentPrompt('CBT Examinations & Mock Testing');
-      return;
-    }
-    if (status === 'Disapproved') {
-      alert(`Access Blocked: Your registration was disapproved. Reason: ${currentUser.disapprovalReason || 'Verification failed.'}`);
       return;
     }
     const isFullMock = mode === 'simulation' && length === 'standard';
@@ -87,14 +87,15 @@ export const DashboardView = () => {
   };
 
   const handleOpenSlip = () => {
-    if (status !== 'Approved') {
-      triggerPaymentPrompt('Candidate Examination Slip');
-      return;
-    }
+    // Registration slip is available immediately upon registration!
     setPhase('registration-slip');
   };
 
   const handleOpenCaps = () => {
+    if (isMalpracticeSanctioned) {
+      setIsAppealModalOpen(true);
+      return;
+    }
     if (status !== 'Approved') {
       triggerPaymentPrompt('JAMB Central Admission Processing System (CAPS)');
       return;
@@ -103,6 +104,10 @@ export const DashboardView = () => {
   };
 
   const handleOpenResults = () => {
+    if (isMalpracticeSanctioned) {
+      setIsAppealModalOpen(true);
+      return;
+    }
     if (status !== 'Approved') {
       triggerPaymentPrompt('Mock Results & Scoring Records');
       return;
@@ -142,10 +147,7 @@ export const DashboardView = () => {
   };
 
   const handleOpenChoices = () => {
-    if (status !== 'Approved') {
-      triggerPaymentPrompt('Preferred Tertiary Institutions & Course Selection');
-      return;
-    }
+    // Choices and O'Level are available to all registered candidates immediately!
     setIsChoicesModalOpen(true);
   };
 
@@ -414,8 +416,56 @@ export const DashboardView = () => {
           </div>
         </div>
 
-        {/* Account Pending Approval Banner - Direct Paystack Unlock Option */}
-        {status === 'Pending' && !currentUser.malpracticeBlocked && (
+        {/* Malpractice Sanction Banner - Appeals Path Only (Payment Disabled) */}
+        {isMalpracticeSanctioned && (
+          <div className="bg-gradient-to-r from-rose-500/15 via-red-500/20 to-rose-500/15 border-2 border-rose-500 rounded-2xl p-4 sm:p-5 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in">
+            <div className="flex items-start sm:items-center gap-3.5">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-rose-600 to-red-700 text-white flex items-center justify-center flex-shrink-0 shadow-md">
+                <ShieldAlert className="w-6 h-6 animate-pulse" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm sm:text-base font-black text-rose-950 uppercase tracking-tight">
+                    Account Status: {currentUser.status === 'Banned' ? 'Permanently Banned' : 'Suspended (Exam Malpractice / Disciplinary Sanction)'}
+                  </h2>
+                  <span className="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-black uppercase tracking-wider">
+                    {currentUser.status === 'Banned' ? 'Banned' : 'Sanction Active'}
+                  </span>
+                </div>
+                <p className="text-xs text-rose-900 mt-1 max-w-xl font-medium leading-relaxed">
+                  {currentUser.status === 'Banned' ? (
+                    <span>This candidate profile has been permanently banned from the JAMB Practice Platform following administrative review.</span>
+                  ) : (
+                    <span>
+                      Examination access has been suspended due to an infraction. <strong>Paystack payment cannot unlock a sanctioned account.</strong> You must submit a formal appeal to the Board Administrator.
+                    </span>
+                  )}
+                </p>
+                {currentUser.appealStatus === 'pending' && (
+                  <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-100 border border-amber-300 text-[11px] font-bold text-amber-900">
+                    <Clock className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Appeal Submitted on {currentUser.appealDate ? new Date(currentUser.appealDate).toLocaleDateString() : 'recent date'} — Awaiting Board Review</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {currentUser.status !== 'Banned' && (
+              <button
+                type="button"
+                onClick={() => setIsAppealModalOpen(true)}
+                className="w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-rose-700 to-red-700 hover:from-rose-800 hover:to-red-800 text-white rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 flex-shrink-0"
+              >
+                <Send className="w-4 h-4" />
+                <span>{currentUser.appealStatus === 'pending' ? 'View Submitted Appeal' : 'Appeal Malpractice Sanction'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Account Pending Approval Banner - Direct Paystack Unlock Option (Normal Registration) */}
+        {status === 'Pending' && !isMalpracticeSanctioned && (
           <div className="bg-gradient-to-r from-amber-500/10 via-emerald-500/15 to-amber-500/10 border-2 border-amber-400 rounded-2xl p-4 sm:p-5 shadow-md flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in">
             <div className="flex items-start sm:items-center gap-3.5">
               <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 to-amber-500 text-slate-900 flex items-center justify-center flex-shrink-0 shadow-md">
@@ -424,14 +474,14 @@ export const DashboardView = () => {
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-sm sm:text-base font-black text-slate-900 uppercase">
-                    Account Status: Pending Approval
+                    Account Status: Pending Portal Activation
                   </h2>
-                  <span className="px-2 py-0.5 rounded-full bg-amber-400 text-slate-900 text-[10px] font-black uppercase tracking-wider">
-                    Portal Locked
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-white text-[10px] font-black uppercase tracking-wider">
+                    Slip & Choices Unlocked
                   </span>
                 </div>
                 <p className="text-xs text-slate-600 mt-0.5 max-w-xl">
-                  Unlock your portal immediately by paying the <strong>₦50</strong> activation fee via Paystack, or wait for manual Administrator verification.
+                  Your <strong>Registration Slip</strong> and <strong>Choices & O'Level</strong> are accessible now. Unlock CBT Mock Simulations and JAMB CAPS tracking instantly by paying the <strong>₦50</strong> activation fee via Paystack.
                 </p>
               </div>
             </div>
@@ -466,6 +516,10 @@ export const DashboardView = () => {
               <button
                 type="button"
                 onClick={() => {
+                  if (isMalpracticeSanctioned) {
+                    setIsAppealModalOpen(true);
+                    return;
+                  }
                   if (status !== 'Approved') {
                     triggerPaymentPrompt('Subject Combination Modification');
                     return;
@@ -999,6 +1053,12 @@ export const DashboardView = () => {
         isOpen={isPaymentModalOpen}
         onClose={() => setIsPaymentModalOpen(false)}
         targetActionName={paymentTargetName}
+      />
+
+      {/* Examination Malpractice Appeal Modal */}
+      <AppealModal
+        isOpen={isAppealModalOpen}
+        onClose={() => setIsAppealModalOpen(false)}
       />
     </div>
   );

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useExam } from '../../context/ExamContext';
 import { AVAILABLE_SUBJECTS } from '../../data/subjects';
 import { testAlocApiKey } from '../../services/jambApiService';
-import { apiGetExamResults } from '../../services/dbService';
+import { apiGetExamResults, apiGetAppeals, apiResolveAppeal } from '../../services/dbService';
 import {
   getEmailSettings,
   fetchEmailSettings,
@@ -51,7 +51,8 @@ import {
   ShieldAlert,
   ChevronLeft,
   ChevronRight,
-  CreditCard
+  CreditCard,
+  FileText
 } from 'lucide-react';
 import { SearchableSelect } from '../common/SearchableSelect';
 
@@ -140,6 +141,47 @@ export const AdminDashboard = () => {
     }
   };
 
+  // Malpractice & Disciplinary Appeals State
+  const [appeals, setAppeals] = useState([]);
+  const [isLoadingAppeals, setIsLoadingAppeals] = useState(false);
+  const [appealFilter, setAppealFilter] = useState('all'); // 'all' | 'pending' | 'resolved'
+  const [appealActionLoading, setAppealActionLoading] = useState(null);
+  const [appealAdminNotes, setAppealAdminNotes] = useState({});
+
+  const loadAppeals = async () => {
+    setIsLoadingAppeals(true);
+    try {
+      const data = await apiGetAppeals();
+      if (Array.isArray(data)) {
+        setAppeals(data);
+      }
+    } catch (err) {
+      console.warn('Failed loading appeals:', err);
+    } finally {
+      setIsLoadingAppeals(false);
+    }
+  };
+
+  const handleResolveAppeal = async (appealId, action) => {
+    setAppealActionLoading(appealId);
+    try {
+      const notes = appealAdminNotes[appealId] || '';
+      const res = await apiResolveAppeal(appealId, action, notes);
+      if (res && res.success) {
+        await Promise.all([
+          loadAppeals(),
+          refreshCandidates()
+        ]);
+      } else {
+        alert(res?.error || 'Failed to update disciplinary appeal.');
+      }
+    } catch (e) {
+      alert('Error updating appeal action.');
+    } finally {
+      setAppealActionLoading(null);
+    }
+  };
+
   useEffect(() => {
     async function syncAllDataFromDatabase() {
       try {
@@ -148,6 +190,7 @@ export const AdminDashboard = () => {
           loadExamResults(),
           handleRefreshOutbox(),
           loadPaymentData(),
+          loadAppeals(),
           fetchEmailSettings().then(cfg => { if (cfg) setEmailConfig(cfg); })
         ]);
       } catch (err) {
@@ -329,6 +372,14 @@ export const AdminDashboard = () => {
   const approvedCount = candidates.filter(c => c.status === 'Approved').length;
   const pendingCount = candidates.filter(c => c.status === 'Pending').length;
   const disapprovedCount = candidates.filter(c => c.status === 'Disapproved').length;
+  const bannedCount = candidates.filter(c => c.status === 'Banned').length;
+  const pendingAppeals = appeals.filter(a => a.status === 'pending');
+
+  const filteredAppeals = appeals.filter(a => {
+    if (appealFilter === 'pending') return a.status === 'pending';
+    if (appealFilter === 'resolved') return a.status !== 'pending';
+    return true;
+  });
 
   // Combine persistent SQLite database results and local candidate histories (FILTERED TO FULL MOCK EXAMS ONLY)
   const allExamSubmissions = (dbExamResults.length > 0
@@ -525,7 +576,7 @@ export const AdminDashboard = () => {
       {/* Main Admin Body */}
       <main className="max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6 flex-1">
         {/* KPI Summary Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
             <div className="text-[11px] font-bold text-slate-500 uppercase">Total Candidates</div>
             <div className="text-2xl font-black text-slate-900 mt-1">{totalCandidates}</div>
@@ -546,16 +597,19 @@ export const AdminDashboard = () => {
             <div className="text-2xl font-black text-rose-700 mt-1">{disapprovedCount}</div>
           </div>
 
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-            <div className="text-[11px] font-bold text-slate-500 uppercase">Mock Submissions</div>
-            <div className="text-2xl font-black text-blue-700 mt-1">{allExamSubmissions.length}</div>
+          <div className={`p-4 rounded-xl border shadow-sm ${bannedCount > 0 ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200'}`}>
+            <div className={`text-[11px] font-bold uppercase ${bannedCount > 0 ? 'text-rose-400' : 'text-slate-500'}`}>Banned</div>
+            <div className={`text-2xl font-black mt-1 ${bannedCount > 0 ? 'text-rose-400' : 'text-slate-900'}`}>{bannedCount}</div>
+          </div>
+
+          <div className={`p-4 rounded-xl border shadow-sm ${pendingAppeals.length > 0 ? 'bg-rose-50 border-rose-300' : 'bg-white border-slate-200'}`}>
+            <div className={`text-[11px] font-bold uppercase ${pendingAppeals.length > 0 ? 'text-rose-800' : 'text-slate-500'}`}>Pending Appeals</div>
+            <div className={`text-2xl font-black mt-1 ${pendingAppeals.length > 0 ? 'text-rose-700 animate-pulse' : 'text-slate-900'}`}>{pendingAppeals.length}</div>
           </div>
 
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-            <div className="text-[11px] font-bold text-slate-500 uppercase">Question Engine</div>
-            <div className="text-xs font-black text-[#006633] mt-2 uppercase truncate">
-              {examSettings.apiSource === 'live_aloc' ? 'Live ALOC API' : 'Offline Archive'}
-            </div>
+            <div className="text-[11px] font-bold text-slate-500 uppercase">Mock Submissions</div>
+            <div className="text-2xl font-black text-blue-700 mt-1">{allExamSubmissions.length}</div>
           </div>
         </div>
 
@@ -573,6 +627,26 @@ export const AdminDashboard = () => {
             <span className="hidden sm:inline">Candidate Registrations</span>
             <span className="sm:hidden">Candidates</span>
             <span>({totalCandidates})</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab('appeals'); loadAppeals(); }}
+            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 font-bold text-xs sm:text-sm border-b-2 transition-all whitespace-nowrap ${
+              activeTab === 'appeals'
+                ? 'border-rose-600 text-rose-700 bg-rose-50/50 rounded-t-lg'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <ShieldAlert className="w-4 h-4 text-rose-600" />
+            <span className="hidden sm:inline">Disciplinary &amp; Appeals</span>
+            <span className="sm:hidden">Appeals</span>
+            {pendingAppeals.length > 0 ? (
+              <span className="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-black animate-pulse">
+                {pendingAppeals.length} Action Needed
+              </span>
+            ) : (
+              <span>({appeals.length})</span>
+            )}
           </button>
 
           <button
@@ -647,6 +721,34 @@ export const AdminDashboard = () => {
         {/* TAB 1: Candidates Management & Approvals */}
         {activeTab === 'candidates' && (
           <div className="bg-white rounded-b-xl rounded-tr-xl border border-slate-300 p-5 shadow-sm space-y-4">
+            {/* Pending Appeals Alert */}
+            {pendingAppeals.length > 0 && (
+              <div className="bg-gradient-to-r from-rose-50 via-red-50 to-amber-50 border-2 border-rose-400 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm animate-in fade-in">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-rose-600 text-white flex items-center justify-center flex-shrink-0 shadow">
+                    <ShieldAlert className="w-5 h-5 animate-pulse" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-black text-rose-950 uppercase tracking-tight">
+                      {pendingAppeals.length} Candidate Malpractice Appeal(s) Awaiting Resolution
+                    </div>
+                    <div className="text-[11px] text-rose-800 font-medium">
+                      Sanctioned candidates have formally submitted appeal filings. Review and resolve in the Disciplinary Console.
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setActiveTab('appeals'); loadAppeals(); }}
+                  className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white rounded-lg text-xs font-black uppercase tracking-wider transition-all shadow-sm flex items-center gap-1.5 self-end sm:self-auto flex-shrink-0"
+                >
+                  <ShieldAlert className="w-3.5 h-3.5" />
+                  <span>Review Appeals Console</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
             {/* Search & Filter Bar */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
               <div className="relative w-full sm:w-80">
@@ -672,6 +774,8 @@ export const AdminDashboard = () => {
                     <option value="Approved">Approved</option>
                     <option value="Pending">Pending Approval</option>
                     <option value="Disapproved">Disapproved</option>
+                    <option value="Suspended">Suspended (Malpractice)</option>
+                    <option value="Banned">Permanently Banned</option>
                   </select>
                 </div>
 
@@ -791,24 +895,55 @@ export const AdminDashboard = () => {
 
                           {/* Status */}
                           <td className="p-3 text-center">
-                            {(cand.status === 'Suspended' || cand.malpracticeBlocked) ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-black text-[10px] uppercase bg-red-100 text-red-800 border border-red-300">
-                                <ShieldAlert className="w-3 h-3 text-red-600" />
-                                <span>Malpractice Locked</span>
-                              </span>
+                            {cand.status === 'Banned' ? (
+                              <div className="flex flex-col items-center gap-1">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-black text-[10px] uppercase bg-slate-900 text-rose-300 border border-rose-800 shadow-sm">
+                                  <XCircle className="w-3 h-3 text-rose-500" />
+                                  <span>Banned</span>
+                                </span>
+                              </div>
+                            ) : (cand.status === 'Suspended' || cand.malpracticeBlocked) ? (
+                              <div className="flex flex-col items-center gap-1">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-black text-[10px] uppercase bg-red-100 text-red-800 border border-red-300">
+                                  <ShieldAlert className="w-3 h-3 text-red-600" />
+                                  <span>Malpractice Locked</span>
+                                </span>
+                                {cand.appealStatus === 'pending' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => { setActiveTab('appeals'); loadAppeals(); }}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-600 text-white text-[9px] font-black uppercase tracking-wider animate-pulse hover:bg-rose-700 transition-colors shadow-sm cursor-pointer"
+                                    title="Click to view candidate appeal in Disciplinary Console"
+                                  >
+                                    🚨 Appeal Pending
+                                  </button>
+                                )}
+                              </div>
                             ) : (
-                              <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-bold text-[10px] uppercase ${
-                                status === 'Approved'
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : status === 'Pending'
-                                  ? 'bg-amber-100 text-amber-800'
-                                  : 'bg-rose-100 text-rose-800'
-                              }`}>
-                                {status === 'Approved' && <CheckCircle2 className="w-3 h-3" />}
-                                {status === 'Pending' && <Clock className="w-3 h-3" />}
-                                {status === 'Disapproved' && <XCircle className="w-3 h-3" />}
-                                <span>{status}</span>
-                              </span>
+                              <div className="flex flex-col items-center gap-1">
+                                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-bold text-[10px] uppercase ${
+                                  status === 'Approved'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : status === 'Pending'
+                                    ? 'bg-amber-100 text-amber-800'
+                                    : 'bg-rose-100 text-rose-800'
+                                }`}>
+                                  {status === 'Approved' && <CheckCircle2 className="w-3 h-3" />}
+                                  {status === 'Pending' && <Clock className="w-3 h-3" />}
+                                  {status === 'Disapproved' && <XCircle className="w-3 h-3" />}
+                                  <span>{status}</span>
+                                </span>
+                                {cand.appealStatus === 'pending' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => { setActiveTab('appeals'); loadAppeals(); }}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-600 text-white text-[9px] font-black uppercase tracking-wider animate-pulse hover:bg-rose-700 transition-colors shadow-sm cursor-pointer"
+                                    title="Click to view candidate appeal in Disciplinary Console"
+                                  >
+                                    🚨 Appeal Pending
+                                  </button>
+                                )}
+                              </div>
                             )}
                           </td>
 
@@ -824,8 +959,30 @@ export const AdminDashboard = () => {
                                 <Eye className="w-4 h-4" />
                               </button>
 
+                              {/* Review Appeal shortcut button */}
+                              {cand.appealStatus === 'pending' && (
+                                <button
+                                  type="button"
+                                  onClick={() => { setActiveTab('appeals'); loadAppeals(); }}
+                                  className="px-2.5 py-1 bg-rose-700 hover:bg-rose-800 text-white rounded text-[11px] font-bold shadow-sm transition-all flex items-center gap-1"
+                                  title="Review Malpractice Appeal"
+                                >
+                                  <ShieldAlert className="w-3 h-3" />
+                                  <span>Appeal</span>
+                                </button>
+                              )}
+
                               {/* Malpractice Re-instate or Approve Button */}
-                              {(cand.status === 'Suspended' || cand.malpracticeBlocked) ? (
+                              {cand.status === 'Banned' ? (
+                                <button
+                                  onClick={() => approveCandidate(cand.id)}
+                                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-white rounded text-[11px] font-bold shadow-sm transition-all flex items-center gap-1"
+                                  title="Unban and Reinstate Candidate"
+                                >
+                                  <Check className="w-3 h-3" />
+                                  <span>Unban</span>
+                                </button>
+                              ) : (cand.status === 'Suspended' || cand.malpracticeBlocked) ? (
                                 <button
                                   onClick={() => approveCandidate(cand.id)}
                                   className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded text-[11px] font-bold shadow-sm transition-all flex items-center gap-1"
@@ -846,7 +1003,7 @@ export const AdminDashboard = () => {
                               )}
 
                               {/* Disapprove Button */}
-                              {status !== 'Disapproved' && !(cand.status === 'Suspended' || cand.malpracticeBlocked) && (
+                              {status !== 'Disapproved' && cand.status !== 'Banned' && !(cand.status === 'Suspended' || cand.malpracticeBlocked) && (
                                 <button
                                   onClick={() => setDisapproveTargetId(cand.id)}
                                   className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded text-[11px] font-bold shadow-sm transition-all"
@@ -915,6 +1072,242 @@ export const AdminDashboard = () => {
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB: Examination Malpractice & Disciplinary Appeals */}
+        {activeTab === 'appeals' && (
+          <div className="bg-white rounded-b-xl rounded-tr-xl border border-slate-300 p-4 sm:p-6 shadow-sm space-y-6 animate-in fade-in">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+              <div>
+                <h2 className="text-sm font-black uppercase text-slate-900 tracking-wider flex items-center gap-2">
+                  <ShieldAlert className="w-5 h-5 text-rose-600" />
+                  <span>Examination Malpractice &amp; Disciplinary Action Center</span>
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Review formal appeals submitted by candidates flagged for CBT infractions. Apply official disciplinary determinations.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                <div className="flex items-center gap-1.5">
+                  <Filter className="w-4 h-4 text-slate-500" />
+                  <select
+                    value={appealFilter}
+                    onChange={(e) => setAppealFilter(e.target.value)}
+                    className="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-bold text-slate-700 bg-slate-50"
+                  >
+                    <option value="all">All Appeals ({appeals.length})</option>
+                    <option value="pending">Pending Review ({pendingAppeals.length})</option>
+                    <option value="resolved">Resolved Decisions ({appeals.length - pendingAppeals.length})</option>
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={loadAppeals}
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold border border-slate-300 transition-all flex items-center gap-1.5 shadow-sm"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 text-slate-600 ${isLoadingAppeals ? 'animate-spin' : ''}`} />
+                  <span>Refresh Appeals</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Appeals Status Breakdown Banner */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200">
+                <div className="text-[10px] font-bold text-amber-800 uppercase">Pending Review</div>
+                <div className="text-xl font-black text-amber-900 mt-0.5">{pendingAppeals.length}</div>
+              </div>
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200">
+                <div className="text-[10px] font-bold text-emerald-800 uppercase">Reinstated Full</div>
+                <div className="text-xl font-black text-emerald-900 mt-0.5">
+                  {appeals.filter(a => a.status === 'reinstated').length}
+                </div>
+              </div>
+              <div className="p-3 rounded-xl bg-blue-50 border border-blue-200">
+                <div className="text-[10px] font-bold text-blue-800 uppercase">Re-Payment Required</div>
+                <div className="text-xl font-black text-blue-900 mt-0.5">
+                  {appeals.filter(a => a.status === 'require_payment').length}
+                </div>
+              </div>
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200">
+                <div className="text-[10px] font-bold text-rose-800 uppercase">Banned Accounts</div>
+                <div className="text-xl font-black text-rose-900 mt-0.5">
+                  {appeals.filter(a => a.status === 'banned').length}
+                </div>
+              </div>
+            </div>
+
+            {/* Appeals Cards List */}
+            {isLoadingAppeals ? (
+              <div className="p-12 text-center text-slate-500 flex flex-col items-center justify-center space-y-2">
+                <RefreshCw className="w-6 h-6 animate-spin text-[#006633]" />
+                <div className="text-xs font-bold">Synchronizing candidate appeal filings...</div>
+              </div>
+            ) : filteredAppeals.length === 0 ? (
+              <div className="p-12 text-center text-slate-500 border border-dashed border-slate-300 rounded-xl space-y-2">
+                <ShieldCheck className="w-10 h-10 text-emerald-600 mx-auto" />
+                <div className="text-sm font-bold text-slate-800">No Disciplinary Appeals Found</div>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  {appealFilter === 'pending'
+                    ? 'All malpractice filings have been reviewed and resolved. No pending candidate appeals.'
+                    : 'Candidates flagged for examination violations submit appeals directly from their portal.'}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredAppeals.map(appeal => {
+                  const isPending = appeal.status === 'pending';
+                  const isActionBusy = appealActionLoading === appeal.id;
+
+                  return (
+                    <div
+                      key={appeal.id}
+                      className={`border-2 rounded-2xl p-5 shadow-sm transition-all space-y-4 ${
+                        isPending
+                          ? 'border-amber-400 bg-amber-50/20'
+                          : appeal.status === 'banned'
+                          ? 'border-slate-800 bg-slate-900 text-white'
+                          : 'border-slate-200 bg-white'
+                      }`}
+                    >
+                      {/* Appeal Card Header */}
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/60">
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <h3 className={`text-sm font-black uppercase tracking-tight ${appeal.status === 'banned' ? 'text-white' : 'text-slate-900'}`}>
+                              {appeal.candidate_name || 'Candidate Name'}
+                            </h3>
+                            <span className="px-2 py-0.5 rounded font-mono text-[11px] font-bold bg-slate-100 text-slate-800 border border-slate-300">
+                              {appeal.reg_number || 'N/A'}
+                            </span>
+                          </div>
+                          <div className={`text-xs font-mono ${appeal.status === 'banned' ? 'text-slate-400' : 'text-slate-600'}`}>
+                            {appeal.candidate_email} • Submitted: {new Date(appeal.created_at).toLocaleString()}
+                          </div>
+                        </div>
+
+                        {/* Status Badge */}
+                        <div className="self-start sm:self-auto">
+                          {isPending ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-black text-xs uppercase bg-amber-100 text-amber-900 border border-amber-300 shadow-sm animate-pulse">
+                              <Clock className="w-3.5 h-3.5 text-amber-600" />
+                              <span>Pending Review</span>
+                            </span>
+                          ) : appeal.status === 'reinstated' ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-black text-xs uppercase bg-emerald-100 text-emerald-800 border border-emerald-300">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Reinstated (Full Forgiveness)</span>
+                            </span>
+                          ) : appeal.status === 'require_payment' ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-black text-xs uppercase bg-blue-100 text-blue-900 border border-blue-300">
+                              <CreditCard className="w-3.5 h-3.5 text-blue-600" />
+                              <span>Re-Payment Required (₦50)</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-black text-xs uppercase bg-rose-900 text-rose-200 border border-rose-700">
+                              <XCircle className="w-3.5 h-3.5 text-rose-400" />
+                              <span>Permanently Banned</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Candidate Appeal Statement */}
+                      <div className={`p-4 rounded-xl border text-xs leading-relaxed space-y-1.5 ${
+                        appeal.status === 'banned'
+                          ? 'bg-slate-800/80 border-slate-700 text-slate-200'
+                          : 'bg-white border-slate-200 text-slate-800'
+                      }`}>
+                        <div className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                          <FileText className="w-3.5 h-3.5 text-slate-400" />
+                          <span>Candidate Formal Statement of Appeal:</span>
+                        </div>
+                        <p className="italic font-medium pl-5 border-l-2 border-amber-500 whitespace-pre-wrap">
+                          "{appeal.reason}"
+                        </p>
+                      </div>
+
+                      {/* Admin Resolution Section */}
+                      {isPending ? (
+                        <div className="space-y-3 pt-2">
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                              Admin Determination Notes (Optional):
+                            </label>
+                            <input
+                              type="text"
+                              value={appealAdminNotes[appeal.id] || ''}
+                              onChange={(e) => setAppealAdminNotes(prev => ({ ...prev, [appeal.id]: e.target.value }))}
+                              placeholder="e.g. Warning issued for screen navigation; candidate agreed to strictly observe fullscreen lock."
+                              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-[#006633]/20 bg-white"
+                            />
+                          </div>
+
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2.5 pt-1">
+                            {/* Action 1: Reinstate Profile */}
+                            <button
+                              type="button"
+                              disabled={isActionBusy}
+                              onClick={() => handleResolveAppeal(appeal.id, 'reinstate')}
+                              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50"
+                              title="Reinstate candidate immediately with Approved status. Unlocks all CBT practice."
+                            >
+                              <CheckCircle2 className="w-4 h-4" />
+                              <span>Reinstate Profile (Full Unlock)</span>
+                            </button>
+
+                            {/* Action 2: Require Re-Activation Payment */}
+                            <button
+                              type="button"
+                              disabled={isActionBusy}
+                              onClick={() => handleResolveAppeal(appeal.id, 'require_payment')}
+                              className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50"
+                              title="Waive malpractice disqualification but reset to Pending. Candidate must pay ₦50 to unlock CBT mock."
+                            >
+                              <CreditCard className="w-4 h-4 text-amber-200" />
+                              <span>Require Re-Payment (₦50)</span>
+                            </button>
+
+                            {/* Action 3: Complete Blockage / Permanent Ban */}
+                            <button
+                              type="button"
+                              disabled={isActionBusy}
+                              onClick={() => {
+                                if (confirm(`Are you sure you want to PERMANENTLY BAN candidate ${appeal.candidate_name}? This will lock this email address out of the platform completely.`)) {
+                                  handleResolveAppeal(appeal.id, 'ban');
+                                }
+                              }}
+                              className="px-4 py-2.5 bg-rose-700 hover:bg-rose-800 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50"
+                              title="Permanently ban candidate. User cannot access the platform with this email."
+                            >
+                              <ShieldAlert className="w-4 h-4" />
+                              <span>Complete Blockage (Ban)</span>
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className={`p-3 rounded-lg border text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 ${
+                          appeal.status === 'banned'
+                            ? 'bg-slate-800 border-slate-700 text-slate-300'
+                            : 'bg-slate-50 border-slate-200 text-slate-600'
+                        }`}>
+                          <div>
+                            <strong>Admin Determination:</strong> {appeal.admin_action || 'Action finalized'}
+                          </div>
+                          <div className="font-mono text-[11px] text-slate-400">
+                            Resolved: {appeal.resolved_at ? new Date(appeal.resolved_at).toLocaleString() : 'Recently'}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

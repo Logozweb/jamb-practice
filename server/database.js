@@ -209,6 +209,26 @@ function initSchema(db) {
     }
   } catch (e) {}
 
+  // 12. Candidate Malpractice Appeals Table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS candidate_appeals (
+      id TEXT PRIMARY KEY,
+      candidate_id TEXT NOT NULL,
+      candidate_name TEXT,
+      candidate_email TEXT,
+      reg_number TEXT,
+      reason TEXT NOT NULL,
+      status TEXT DEFAULT 'pending',
+      admin_action TEXT,
+      created_at TEXT NOT NULL,
+      resolved_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_appeals_candidate ON candidate_appeals(candidate_id);
+    CREATE INDEX IF NOT EXISTS idx_appeals_status ON candidate_appeals(status);
+  `);
+  try { db.exec('ALTER TABLE candidates ADD COLUMN appeal_status TEXT'); } catch (e) {}
+  try { db.exec('ALTER TABLE candidates ADD COLUMN appeal_date TEXT'); } catch (e) {}
+
   // Ensure Default Admin Exists
   const adminCheck = db.prepare('SELECT id FROM admin_users WHERE email = ?').get('hello@pauladisa.com');
   if (!adminCheck) {
@@ -470,6 +490,8 @@ function formatCandidateFromDb(row) {
     caps: safeJsonParse(row.caps, { status: 'Admission in Progress' }),
     paymentReference: row.payment_reference || null,
     paymentDate: row.payment_date || null,
+    appealStatus: row.appeal_status || null,
+    appealDate: row.appeal_date || null,
     examHistory,
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -940,6 +962,129 @@ export function savePaymentSettings(settings) {
   `).run('primary', enabled, fee, pubKey, secKey, now);
 
   return getPaymentSettings();
+}
+
+// -------------------------------------------------------------
+// Malpractice Appeals & Disciplinary Operations
+// -------------------------------------------------------------
+export function submitCandidateAppeal(candidateId, reason) {
+  const db = getDatabase();
+  const candidate = getCandidateById(candidateId);
+  if (!candidate) return { success: false, error: 'Candidate not found.' };
+
+  const id = `appeal_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+  const now = new Date().toISOString();
+  const cleanReason = (reason || '').trim();
+
+  // Invalidate any older open appeal
+  db.prepare("UPDATE candidate_appeals SET status = 'superseded' WHERE candidate_id = ? AND status = 'pending'").run(candidateId);
+
+  db.prepare(`
+    INSERT INTO candidate_appeals (
+      id, candidate_id, candidate_name, candidate_email, reg_number,
+      reason, status, admin_action, created_at, resolved_at
+    ) VALUES (?, ?, ?, ?, ?, ?, 'pending', NULL, ?, NULL)
+  `).run(
+    id,
+    candidate.id,
+    candidate.name,
+    candidate.email,
+    candidate.regNumber,
+    cleanReason,
+    now
+  );
+
+  db.prepare(`
+    UPDATE candidates
+    SET appeal_status = 'pending',
+        appeal_date = ?,
+        updated_at = ?
+    WHERE id = ?
+  `).run(now, now, candidateId);
+
+  return { success: true, appealId: id, candidate: getCandidateById(candidateId) };
+}
+
+export function getAllAppeals() {
+  const db = getDatabase();
+  return db.prepare(`
+    SELECT id, candidate_id as candidateId, candidate_name as candidateName,
+           candidate_email as candidateEmail, reg_number as regNumber,
+           reason, status, admin_action as adminAction,
+           created_at as createdAt, resolved_at as resolvedAt
+    FROM candidate_appeals
+    ORDER BY created_at DESC
+    LIMIT 100
+  `).all();
+}
+
+export function resolveAppeal(appealId, action, adminNotes = '') {
+  const db = getDatabase();
+  const now = new Date().toISOString();
+  const appeal = db.prepare('SELECT * FROM candidate_appeals WHERE id = ?').get(appealId);
+  if (!appeal) return { success: false, error: 'Appeal record not found.' };
+
+  const candidateId = appeal.candidate_id;
+
+  if (action === 'reinstate') {
+    // 1. Reinstate candidate profile to Approved
+    db.prepare(`
+      UPDATE candidate_appeals
+      SET status = 'reinstated',
+          admin_action = ?,
+          resolved_at = ?
+      WHERE id = ?
+    `).run(adminNotes || 'Reinstated by Administrator after appeal review', now, appealId);
+
+    db.prepare(`
+      UPDATE candidates
+      SET status = 'Approved',
+          disapproval_reason = NULL,
+          appeal_status = 'reinstated',
+          updated_at = ?
+      WHERE id = ?
+    `).run(now, candidateId);
+
+  } else if (action === 'require_payment') {
+    // 2. Clear sanction but require re-activation payment before taking exams
+    db.prepare(`
+      UPDATE candidate_appeals
+      SET status = 'require_payment',
+          admin_action = ?,
+          resolved_at = ?
+      WHERE id = ?
+    `).run(adminNotes || 'Sanction waived; Re-activation payment required to retake exams', now, appealId);
+
+    db.prepare(`
+      UPDATE candidates
+      SET status = 'Pending',
+          disapproval_reason = 'Re-activation fee required: Administrator reviewed appeal and approved conditional re-entry upon payment of exam portal fee.',
+          appeal_status = 'require_payment',
+          updated_at = ?
+      WHERE id = ?
+    `).run(now, candidateId);
+
+  } else if (action === 'ban') {
+    // 3. Complete blockage / Permanent Ban
+    db.prepare(`
+      UPDATE candidate_appeals
+      SET status = 'banned',
+          admin_action = ?,
+          resolved_at = ?
+      WHERE id = ?
+    `).run(adminNotes || 'Appeal Rejected: Permanent ban applied for confirmed examination malpractice', now, appealId);
+
+    db.prepare(`
+      UPDATE candidates
+      SET status = 'Banned',
+          disapproval_reason = 'Account permanently banned from JAMB Practice Platform for severe examination malpractice.',
+          appeal_status = 'banned',
+          updated_at = ?
+      WHERE id = ?
+    `).run(now, candidateId);
+  }
+
+  return { success: true, action, candidate: getCandidateById(candidateId) };
 }
 
 function safeJsonParse(str, fallback) {

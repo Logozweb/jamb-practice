@@ -128,6 +128,12 @@ export function databaseApiPlugin(env = {}) {
             const body = await readBody(req);
             const candidate = db.authenticateCandidate(body.emailOrReg, body.password);
             if (candidate) {
+              if (candidate.status === 'Banned') {
+                return sendJson(res, 403, {
+                  success: false,
+                  error: 'ACCESS PERMANENTLY BLOCKED: This account has been banned from the platform for confirmed examination malpractice. Appeals for this account have been closed.'
+                });
+              }
               return sendJson(res, 200, { success: true, candidate });
             }
             return sendJson(res, 401, { success: false, error: 'Invalid Email/Reg No or Password.' });
@@ -378,6 +384,36 @@ export function databaseApiPlugin(env = {}) {
             req.resume();
             db.clearEmailOutboxLogsInDb();
             return sendJson(res, 200, { success: true });
+          }
+
+          // -------------------------------------------------------------
+          // Malpractice Appeals Endpoints
+          // -------------------------------------------------------------
+          if (pathname === '/api/appeals' && method === 'POST') {
+            const body = await readBody(req);
+            const { candidateId, reason } = body;
+            if (!candidateId || !reason || !reason.trim()) {
+              return sendJson(res, 400, { success: false, error: 'Please enter a clear explanation for your appeal.' });
+            }
+            const result = db.submitCandidateAppeal(candidateId, reason.trim());
+            return sendJson(res, result.success ? 200 : 400, result);
+          }
+
+          if (pathname === '/api/appeals' && method === 'GET') {
+            if (!requireAdminAuth(req, res)) return;
+            const appeals = db.getAllAppeals();
+            return sendJson(res, 200, { success: true, appeals });
+          }
+
+          if (pathname === '/api/appeals/resolve' && method === 'POST') {
+            if (!requireAdminAuth(req, res)) return;
+            const body = await readBody(req);
+            const { appealId, action, adminNotes } = body;
+            if (!appealId || !['reinstate', 'require_payment', 'ban'].includes(action)) {
+              return sendJson(res, 400, { success: false, error: 'Invalid appeal resolution action requested.' });
+            }
+            const result = db.resolveAppeal(appealId, action, adminNotes);
+            return sendJson(res, result.success ? 200 : 400, result);
           }
 
           // -------------------------------------------------------------
