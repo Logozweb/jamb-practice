@@ -210,6 +210,57 @@ export const ExamProvider = ({ children }) => {
   const [isFullscreen, setIsFullscreen] = useState(
     typeof document !== 'undefined' ? Boolean(document.fullscreenElement) : false
   );
+  const [sessionRestoredNotice, setSessionRestoredNotice] = useState(null);
+
+  // Auto-recover active exam session on initial page load (resilience against drops/reloads)
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('jamb_active_exam_session');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.examData && Object.keys(parsed.examData).length > 0 && parsed.timerSeconds > 0) {
+          const ageHours = (Date.now() - (parsed.savedAt || 0)) / (1000 * 60 * 60);
+          if (ageHours < 4) {
+            setExamData(parsed.examData);
+            if (parsed.activeSubjectId) setActiveSubjectId(parsed.activeSubjectId);
+            if (parsed.currentQuestionIndex !== undefined) setCurrentQuestionIndex(parsed.currentQuestionIndex);
+            if (parsed.timerSeconds) setTimerSeconds(parsed.timerSeconds);
+            if (parsed.selectedSubjectIds) setSelectedSubjectIds(parsed.selectedSubjectIds);
+            if (parsed.examMode) setExamMode(parsed.examMode);
+            if (parsed.examLength) setExamLength(parsed.examLength);
+            setPhase('active');
+            setIsTimerRunning(true);
+            setSessionRestoredNotice('Exam Session Recovered: All previously selected answers and remaining time were safely restored.');
+            setTimeout(() => setSessionRestoredNotice(null), 8000);
+          } else {
+            sessionStorage.removeItem('jamb_active_exam_session');
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Session restoration note:', e.message);
+    }
+  }, []);
+
+  // Continuous background auto-save to sessionStorage while an exam session is active
+  useEffect(() => {
+    if (phase === 'active' && examData && Object.keys(examData).length > 0) {
+      try {
+        const payload = {
+          candidateId: currentUser?.id,
+          examMode,
+          examLength,
+          selectedSubjectIds,
+          activeSubjectId,
+          currentQuestionIndex,
+          timerSeconds,
+          examData,
+          savedAt: Date.now()
+        };
+        sessionStorage.setItem('jamb_active_exam_session', JSON.stringify(payload));
+      } catch (e) {}
+    }
+  }, [phase, examData, activeSubjectId, currentQuestionIndex, timerSeconds, examMode, examLength, selectedSubjectIds, currentUser?.id]);
 
   const reEnterFullscreen = useCallback(() => {
     try {
@@ -707,6 +758,7 @@ export const ExamProvider = ({ children }) => {
     setIsDisqualified(false);
     setIsMalpracticeModalOpen(false);
     setIsFullscreen(true);
+    try { sessionStorage.removeItem('jamb_active_exam_session'); } catch (e) {}
 
     try {
       if (document.documentElement.requestFullscreen) {
@@ -902,6 +954,7 @@ export const ExamProvider = ({ children }) => {
     clearInterval(timerRef.current);
     setIsTimerRunning(false);
     setIsSubmitModalOpen(false);
+    try { sessionStorage.removeItem('jamb_active_exam_session'); } catch (e) {}
 
     try {
       if (document.fullscreenElement && document.exitFullscreen) {
@@ -1253,6 +1306,7 @@ export const ExamProvider = ({ children }) => {
         setAlocApiKey,
         isLoadingQuestions,
         apiFetchNotice,
+        sessionRestoredNotice,
         isApiSettingsOpen,
         setIsApiSettingsOpen,
         isDisclaimerOpen,

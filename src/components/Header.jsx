@@ -52,8 +52,13 @@ export const Header = () => {
           </div>
         </div>
 
-        {/* Action Tools: Calculator, 8-Key Guide */}
+        {/* Action Tools: Calculator, 8-Key Guide & Auto-save Status */}
         <div className="flex items-center gap-1.5 sm:gap-2 mt-1.5 sm:mt-0">
+          <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 bg-black/25 text-emerald-300 rounded text-[10px] font-mono border border-emerald-500/30">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>Auto-Saved Locally</span>
+          </div>
+
           <button
             onClick={() => setIsCalculatorOpen(prev => !prev)}
             title="Open On-Screen Calculator (or press Alt+C)"
@@ -98,7 +103,7 @@ export const Header = () => {
             </div>
             <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] sm:text-xs text-slate-600 font-medium">
               <span>Reg: <strong className="font-mono text-slate-900">{candidate.regNumber}</strong></span>
-              <span>Seat: <strong className="font-mono text-slate-900">{candidate.seatNumber}</strong></span>
+              <span>Desk: <strong className="font-mono text-slate-900">{candidate.seatNumber || 'Virtual Desk'}</strong></span>
             </div>
             <div className="text-[10px] sm:text-[11px] text-slate-500 truncate max-w-xs sm:max-w-sm">
               Centre: {candidate.center}

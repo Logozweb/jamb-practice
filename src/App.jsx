@@ -22,7 +22,7 @@ import { AdminLoginView } from './components/admin/AdminLoginView';
 import { DisclaimerModal } from './components/modals/DisclaimerModal';
 import { MalpracticeWarningModal } from './components/MalpracticeWarningModal';
 import { PreExamSecurityModal } from './components/modals/PreExamSecurityModal';
-import { X, Maximize2 } from 'lucide-react';
+import { X, Maximize2, ShieldCheck } from 'lucide-react';
 
 const ExamPortal = () => {
   const {
@@ -31,6 +31,7 @@ const ExamPortal = () => {
     currentUser,
     isLoadingQuestions,
     apiFetchNotice,
+    sessionRestoredNotice,
     isDisclaimerOpen,
     setIsDisclaimerOpen,
     isMobilePaletteOpen,
@@ -147,6 +148,14 @@ const ExamPortal = () => {
         {apiFetchNotice && (
           <div className="bg-emerald-800 text-white text-xs px-4 py-1.5 font-bold text-center flex items-center justify-center gap-2">
             <span>🌐 {apiFetchNotice}</span>
+          </div>
+        )}
+
+        {/* Resilient Session Recovery Notice Banner */}
+        {sessionRestoredNotice && (
+          <div className="bg-[#004d25] border-b-2 border-amber-400 text-white text-xs px-4 py-2 font-bold text-center flex items-center justify-center gap-2 shadow-sm animate-in fade-in">
+            <ShieldCheck className="w-4 h-4 text-amber-300 flex-shrink-0" />
+            <span>{sessionRestoredNotice}</span>
           </div>
         )}
 
