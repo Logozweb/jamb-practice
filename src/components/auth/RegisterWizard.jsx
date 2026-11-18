@@ -34,6 +34,69 @@ const AVATAR_PRESETS = [
   'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200'
 ];
 
+export function getCourseSubjectAdvisory(courseName) {
+  const clean = (courseName || '').toLowerCase().trim();
+  if (!clean) return null;
+
+  if (clean.includes('med') || clean.includes('surg') || clean.includes('nurs') || clean.includes('pharm') || clean.includes('dent') || clean.includes('physiol') || clean.includes('anatom') || clean.includes('biochem') || clean.includes('microbio') || clean.includes('vet')) {
+    return {
+      faculty: 'Medical & Life Sciences',
+      subjects: ['english', 'biology', 'chemistry', 'physics'],
+      label: 'English • Biology • Chemistry • Physics'
+    };
+  }
+  if (clean.includes('engin') || clean.includes('tech') || clean.includes('comput') || clean.includes('softw') || clean.includes('cyber') || clean.includes('mechatron') || clean.includes('data sci') || clean.includes('physic') || clean.includes('math')) {
+    return {
+      faculty: 'Engineering & Computing',
+      subjects: ['english', 'mathematics', 'physics', 'chemistry'],
+      label: 'English • Mathematics • Physics • Chemistry'
+    };
+  }
+  if (clean.includes('law') || clean.includes('juris') || clean.includes('legal')) {
+    return {
+      faculty: 'Faculty of Law',
+      subjects: ['english', 'literature', 'government', 'crs'],
+      label: 'English • Literature in English • Government • CRK/IRS'
+    };
+  }
+  if (clean.includes('account') || clean.includes('financ') || clean.includes('bank') || clean.includes('bus') || clean.includes('econ') || clean.includes('market') || clean.includes('insur')) {
+    return {
+      faculty: 'Commercial & Management Sciences',
+      subjects: ['english', 'mathematics', 'economics', 'commerce'],
+      label: 'English • Mathematics • Economics • Commerce'
+    };
+  }
+  if (clean.includes('mass') || clean.includes('commun') || clean.includes('journ') || clean.includes('theat') || clean.includes('linguist') || clean.includes('music')) {
+    return {
+      faculty: 'Arts & Humanities',
+      subjects: ['english', 'literature', 'government', 'crs'],
+      label: 'English • Literature in English • Government • CRK/IRS'
+    };
+  }
+  if (clean.includes('archit') || clean.includes('build') || clean.includes('survey') || clean.includes('urban') || clean.includes('estate')) {
+    return {
+      faculty: 'Environmental Sciences',
+      subjects: ['english', 'mathematics', 'physics', 'geography'],
+      label: 'English • Mathematics • Physics • Geography'
+    };
+  }
+  if (clean.includes('pol') || clean.includes('socio') || clean.includes('internat') || clean.includes('pub admin') || clean.includes('psychol')) {
+    return {
+      faculty: 'Social Sciences',
+      subjects: ['english', 'government', 'economics', 'literature'],
+      label: 'English • Government • Economics • Literature in English'
+    };
+  }
+  if (clean.includes('agric') || clean.includes('forest') || clean.includes('fisher') || clean.includes('soil')) {
+    return {
+      faculty: 'Agriculture',
+      subjects: ['english', 'biology', 'chemistry', 'agriculture'],
+      label: 'English • Biology • Chemistry • Agricultural Science'
+    };
+  }
+  return null;
+}
+
 export const RegisterWizard = () => {
   const { registerCandidate, setPhase, setIsDisclaimerOpen } = useExam();
 
@@ -993,8 +1056,36 @@ export const RegisterWizard = () => {
               )}
 
               {/* STEP 3: UTME 4-Subject Combination Selection & Confirmation */}
-              {currentStep === 3 && (
+              {currentStep === 3 && (() => {
+                const advisory = getCourseSubjectAdvisory(firstCourse);
+                return (
                 <div className="space-y-4 animate-in fade-in">
+                  {/* Smart Combination Advisory Card */}
+                  {advisory && (
+                    <div className="p-3 bg-amber-50/90 border border-amber-300 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-2xs">
+                      <div className="flex items-start gap-2">
+                        <Sparkles className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <div className="text-[11px] font-bold text-amber-950 uppercase tracking-tight flex items-center gap-1.5">
+                            <span>Smart Combination Guide</span>
+                            <span className="text-[9px] bg-amber-200/80 text-amber-900 px-1.5 py-0.2 rounded font-black">{advisory.faculty}</span>
+                          </div>
+                          <p className="text-[11px] text-amber-900 mt-0.5">
+                            Standard combination for <strong>{firstCourse || 'target course'}</strong>: {advisory.label}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSubjects(advisory.subjects)}
+                        className="self-end sm:self-auto px-3 py-1.5 bg-[#006633] hover:bg-[#00552b] text-white font-bold text-[10px] uppercase tracking-wider rounded-lg shadow-sm whitespace-nowrap transition-all flex items-center gap-1 cursor-pointer"
+                      >
+                        <Check className="w-3 h-3 stroke-[3]" />
+                        <span>Apply Recommended</span>
+                      </button>
+                    </div>
+                  )}
+
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
                       <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
@@ -1084,7 +1175,7 @@ export const RegisterWizard = () => {
                     </button>
                   </div>
                 </div>
-              )}
+              );})()}
             </form>
 
             {/* Resend OTP Link below button */}

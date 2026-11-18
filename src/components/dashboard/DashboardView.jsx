@@ -209,7 +209,9 @@ export const DashboardView = () => {
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="hidden sm:flex flex-col text-right">
               <span className="text-xs font-bold uppercase">{currentUser.name}</span>
-              <span className="text-[10px] text-emerald-200 font-mono">Reg: {currentUser.regNumber}</span>
+              <span className="text-[10px] text-emerald-200 font-mono">
+                {currentUser.practiceId || ('SIM-2026-' + (currentUser.regNumber ? currentUser.regNumber.slice(-4) : '7841'))} • Reg: {currentUser.regNumber}
+              </span>
             </div>
 
             <button
@@ -305,9 +307,10 @@ export const DashboardView = () => {
                 {currentUser.name}
               </h1>
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-x-4 gap-y-1 text-xs text-slate-600">
+                <span>Practice ID: <strong className="font-mono text-[#006633] font-bold">{currentUser.practiceId || ('SIM-2026-' + (currentUser.regNumber ? currentUser.regNumber.slice(-4) : '7841'))}</strong></span>
                 <span>Reg No: <strong className="font-mono text-slate-900">{currentUser.regNumber}</strong></span>
                 <span>Profile Code: <strong className="font-mono text-emerald-800">{currentUser.profileCode}</strong></span>
-                <span>Gender: <strong className="text-slate-900">{currentUser.gender || 'Not Specified'}</strong></span>
+                <span>Desk: <strong className="font-mono text-slate-900">{currentUser.seatNumber || 'Virtual Desk 14'}</strong></span>
                 <span>DOB: <strong className="text-slate-900">{currentUser.dob || 'Not Specified'}</strong></span>
                 <span>Phone: <strong className="font-mono text-slate-900">{currentUser.phone || 'Not Specified'}</strong></span>
               </div>

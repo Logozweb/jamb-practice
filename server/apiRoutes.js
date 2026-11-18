@@ -1,5 +1,5 @@
 import * as db from './database.js';
-import { dispatchEmail } from './emailDispatcher.js';
+import { dispatchEmail, dispatchWelcomeEmail } from './emailDispatcher.js';
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -91,6 +91,11 @@ export function databaseApiPlugin(env = {}) {
           if (pathname === '/api/candidates' && method === 'POST') {
             const body = await readBody(req);
             const saved = db.saveCandidate(body);
+            if (saved && saved.email && !body.skipWelcomeEmail) {
+              dispatchWelcomeEmail(saved, env).catch(err => {
+                console.warn('Asynchronous welcome email dispatch note:', err.message);
+              });
+            }
             return sendJson(res, 201, saved);
           }
 

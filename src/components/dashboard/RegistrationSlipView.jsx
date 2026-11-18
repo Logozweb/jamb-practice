@@ -42,17 +42,17 @@ export const RegistrationSlipView = () => {
               <circle cx="50" cy="50" r="45" fill="#006633" stroke="#FFB800" strokeWidth="4" />
               <path d="M50 15 L58 35 L80 38 L63 52 L68 74 L50 62 L32 74 L37 52 L20 38 L42 35 Z" fill="#FFB800" />
               <circle cx="50" cy="50" r="14" fill="#FFFFFF" />
-              <text x="50" y="55" fontSize="11" fontWeight="bold" textAnchor="middle" fill="#006633">JAMB</text>
+              <text x="50" y="55" fontSize="11" fontWeight="bold" textAnchor="middle" fill="#006633">CBT</text>
             </svg>
           </div>
           <div className="text-[11px] uppercase font-bold tracking-widest text-slate-700">
-            JAMB Practice Platform
+            Independent UTME CBT Simulator
           </div>
           <h1 className="text-xl md:text-2xl font-black uppercase tracking-tight text-slate-900">
-            UTME Examination Simulation & Practice Portal
+            UTME Examination Simulation &amp; Practice Portal
           </h1>
           <div className="text-xs md:text-sm font-black text-[#006633] uppercase tracking-wide mt-0.5">
-            2026 UTME CANDIDATE PRACTICE EXAMINATION SLIP
+            2026 UTME CANDIDATE PRACTICE EXAMINATION SUMMARY SLIP
           </div>
         </div>
 
@@ -77,14 +77,18 @@ export const RegistrationSlipView = () => {
 
           {/* Bio Data Details */}
           <div className="md:col-span-3 space-y-3 text-xs">
-            <div className="grid grid-cols-2 gap-4 pb-2 border-b border-slate-200">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pb-2 border-b border-slate-200">
+              <div>
+                <span className="text-slate-500 font-bold uppercase block text-[10px]">Practice ID:</span>
+                <span className="text-sm sm:text-base font-black font-mono text-[#006633]">{currentUser.practiceId || ('SIM-2026-' + (currentUser.regNumber ? currentUser.regNumber.slice(-4) : '7841'))}</span>
+              </div>
               <div>
                 <span className="text-slate-500 font-bold uppercase block text-[10px]">Registration Number:</span>
-                <span className="text-base font-black font-mono text-[#006633]">{currentUser.regNumber}</span>
+                <span className="text-sm sm:text-base font-black font-mono text-slate-800">{currentUser.regNumber}</span>
               </div>
               <div>
                 <span className="text-slate-500 font-bold uppercase block text-[10px]">Profile Code:</span>
-                <span className="text-base font-black font-mono text-slate-900">{currentUser.profileCode}</span>
+                <span className="text-sm sm:text-base font-black font-mono text-slate-900">{currentUser.profileCode}</span>
               </div>
             </div>
 

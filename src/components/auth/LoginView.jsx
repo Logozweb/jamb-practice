@@ -91,7 +91,7 @@ export const LoginView = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Email Address or Registration No.
+                Email, Practice ID (SIM-...) or Reg Number
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
@@ -99,6 +99,7 @@ export const LoginView = () => {
                   type="text"
                   value={emailOrReg}
                   onChange={(e) => { setEmailOrReg(e.target.value); setError(''); }}
+                  placeholder="e.g. SIM-2026-7841 or candidate@gmail.com"
                   className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 focus:border-[#006633] focus:ring-2 focus:ring-[#006633]/20 text-xs sm:text-sm text-slate-900"
                 />
               </div>

@@ -556,7 +556,8 @@ export const ExamProvider = ({ children }) => {
     const candidate = candidates.find(
       c => (c.email.toLowerCase() === cleanInput.toLowerCase() ||
             c.regNumber.toUpperCase() === cleanInput.toUpperCase() ||
-            c.profileCode === cleanInput) &&
+            c.profileCode === cleanInput ||
+            (c.practiceId && c.practiceId.toUpperCase() === cleanInput.toUpperCase())) &&
            c.password === password
     );
 
@@ -581,15 +582,16 @@ export const ExamProvider = ({ children }) => {
       return { success: true };
     }
 
-    return { success: false, error: remote.error || 'Invalid Email/Reg No or Password. Please try again.' };
+    return { success: false, error: remote.error || 'Invalid Email/Practice ID/Reg No or Password. Please try again.' };
   };
 
   // Auth: Register candidate with simple fast registration
   const registerCandidate = (candidateData) => {
     const regNumber = candidateData.regNumber || ('2026' + Math.floor(10000000 + Math.random() * 90000000) + 'EB');
+    const practiceId = candidateData.practiceId || ('SIM-2026-' + Math.floor(1000 + Math.random() * 9000));
     const profileCode = candidateData.profileCode || ('55019' + Math.floor(10000 + Math.random() * 90000));
-    const seatNumber = candidateData.seatNumber || (`A-0${Math.floor(10 + Math.random() * 89)}`);
-    const center = 'ONLINE JAMB CBT SIMULATION';
+    const seatNumber = candidateData.seatNumber || (`Virtual Desk ${Math.floor(1 + Math.random() * 60)}`);
+    const center = candidateData.center || 'ONLINE JAMB CBT SIMULATION';
     const passport = candidateData.passport || `https://ui-avatars.com/api/?name=${encodeURIComponent(candidateData.name || 'Candidate')}&background=006633&color=fff&size=200`;
 
     const newCandidate = {
@@ -602,6 +604,7 @@ export const ExamProvider = ({ children }) => {
       emailVerified: true,
       disapprovalReason: null,
       regNumber,
+      practiceId,
       profileCode,
       seatNumber,
       center,

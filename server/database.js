@@ -228,6 +228,7 @@ function initSchema(db) {
   `);
   try { db.exec('ALTER TABLE candidates ADD COLUMN appeal_status TEXT'); } catch (e) {}
   try { db.exec('ALTER TABLE candidates ADD COLUMN appeal_date TEXT'); } catch (e) {}
+  try { db.exec('ALTER TABLE candidates ADD COLUMN practice_id TEXT'); } catch (e) {}
 
   // Ensure Default Admin Exists
   const adminCheck = db.prepare('SELECT id FROM admin_users WHERE email = ?').get('hello@pauladisa.com');
@@ -319,7 +320,8 @@ export function getAllCandidates() {
 
 export function getCandidateById(id) {
   const db = getDatabase();
-  const row = db.prepare('SELECT * FROM candidates WHERE id = ? OR email = ? OR reg_number = ?').get(id, id, id);
+  const cleanUpper = (id || '').trim().toUpperCase();
+  const row = db.prepare('SELECT * FROM candidates WHERE id = ? OR email = ? OR reg_number = ? OR UPPER(practice_id) = ?').get(id, id, id, cleanUpper);
   return row ? formatCandidateFromDb(row) : null;
 }
 
@@ -330,8 +332,9 @@ export function saveCandidate(candidate) {
   const id = candidate.id || `cand_${Date.now()}`;
   const regNumber = candidate.regNumber || ('2026' + crypto.randomInt(10000000, 100000000) + 'EB');
   const profileCode = candidate.profileCode || ('55019' + crypto.randomInt(10000, 100000));
-  const seatNumber = candidate.seatNumber || (`A-0${crypto.randomInt(10, 99)}`);
-  const center = 'ONLINE JAMB CBT SIMULATION';
+  const seatNumber = candidate.seatNumber || (`Virtual Desk ${crypto.randomInt(1, 60)}`);
+  const practiceId = candidate.practiceId || (`SIM-2026-${crypto.randomInt(1000, 9999)}`);
+  const center = candidate.center || 'ONLINE JAMB CBT SIMULATION';
   const passport = candidate.passport || `https://ui-avatars.com/api/?name=${encodeURIComponent(candidate.name || 'Candidate')}&background=006633&color=fff&size=200`;
 
   // Cryptographically hash candidate password if plain text
@@ -346,13 +349,13 @@ export function saveCandidate(candidate) {
       reg_number, profile_code, seat_number, center, exam_town, exam_date, exam_time,
       passport, state_of_origin, lga, target_course, faculty,
       first_choice, second_choice, third_choice, fourth_choice, selected_subjects,
-      caps, created_at, updated_at
+      caps, practice_id, created_at, updated_at
     ) VALUES (
       ?, ?, ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?,
-      ?, ?, ?
+      ?, ?, ?, ?
     )
   `);
 
@@ -391,6 +394,7 @@ export function saveCandidate(candidate) {
       rejected: false,
       admittedAt: null
     }),
+    practiceId,
     candidate.createdAt || now,
     now
   );
@@ -414,12 +418,12 @@ export function deleteCandidateById(id) {
 export function authenticateCandidate(emailOrReg, password) {
   const db = getDatabase();
   const clean = (emailOrReg || '').trim().toLowerCase();
-  const cleanReg = (emailOrReg || '').trim().toUpperCase();
+  const cleanUpper = (emailOrReg || '').trim().toUpperCase();
 
   const row = db.prepare(`
     SELECT * FROM candidates
-    WHERE LOWER(email) = ? OR UPPER(reg_number) = ? OR profile_code = ?
-  `).get(clean, cleanReg, emailOrReg.trim());
+    WHERE LOWER(email) = ? OR UPPER(reg_number) = ? OR profile_code = ? OR UPPER(practice_id) = ?
+  `).get(clean, cleanUpper, emailOrReg.trim(), cleanUpper);
 
   if (!row) return null;
 
@@ -471,6 +475,7 @@ function formatCandidateFromDb(row) {
     status: row.status,
     disapprovalReason: row.disapproval_reason,
     regNumber: row.reg_number,
+    practiceId: row.practice_id || ('SIM-2026-' + (row.reg_number ? row.reg_number.slice(-4) : '7841')),
     profileCode: row.profile_code,
     seatNumber: row.seat_number,
     center: row.center,
