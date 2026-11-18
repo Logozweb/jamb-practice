@@ -1,5 +1,12 @@
 import * as db from './database.js';
-import { dispatchEmail, dispatchWelcomeEmail, dispatchPaymentReceiptEmail, dispatchAppealDecisionEmail } from './emailDispatcher.js';
+import {
+  dispatchEmail,
+  dispatchWelcomeEmail,
+  dispatchPaymentReceiptEmail,
+  dispatchAppealDecisionEmail,
+  dispatchTicketAckEmail,
+  dispatchTicketReplyEmail
+} from './emailDispatcher.js';
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -110,9 +117,11 @@ export function databaseApiPlugin(env = {}) {
             if (!requireAdminAuth(req, res)) return;
             const id = pathname.replace('/api/candidates/', '');
             const body = await readBody(req);
-            const updated = db.updateCandidateField(id, body);
-            if (!updated) return sendJson(res, 404, { error: 'Candidate not found' });
-            return sendJson(res, 200, updated);
+            const result = db.adminUpdateCandidate(id, body);
+            if (!result || !result.success) {
+              return sendJson(res, 400, { success: false, error: result?.error || 'Failed to update candidate profile.' });
+            }
+            return sendJson(res, 200, { success: true, candidate: result.candidate });
           }
 
           if (pathname.startsWith('/api/candidates/') && method === 'DELETE') {
@@ -448,6 +457,75 @@ export function databaseApiPlugin(env = {}) {
               });
             }
             return sendJson(res, result.success ? 200 : 400, result);
+          }
+
+          // -------------------------------------------------------------
+          // Candidate Help Desk & Support Ticket Endpoints
+          // -------------------------------------------------------------
+          if (pathname === '/api/support/tickets' && method === 'GET') {
+            const candidateId = url.searchParams.get('candidateId');
+            if (!candidateId) {
+              // Fetching all tickets requires administrator authorization
+              if (!requireAdminAuth(req, res)) return;
+            }
+            const tickets = db.getSupportTickets(candidateId);
+            return sendJson(res, 200, { success: true, tickets });
+          }
+
+          if (pathname === '/api/support/tickets' && method === 'POST') {
+            const body = await readBody(req);
+            const { candidateId, category, subject, message } = body;
+            if (!candidateId || !subject?.trim() || !message?.trim()) {
+              return sendJson(res, 400, { success: false, error: 'Candidate ID, subject, and message are required.' });
+            }
+            const ticket = db.createSupportTicket({
+              candidateId,
+              category: category || 'general',
+              subject,
+              message
+            });
+            if (ticket && ticket.candidateEmail) {
+              const candidate = db.getCandidateById(candidateId);
+              if (candidate) {
+                dispatchTicketAckEmail({ candidate, ticket, env }).catch(err => {
+                  console.warn('Support ticket acknowledgment email dispatch note:', err.message);
+                });
+              }
+            }
+            return sendJson(res, 201, { success: true, ticket });
+          }
+
+          if (pathname === '/api/support/tickets/resolve' && method === 'POST') {
+            const admin = requireAdminAuth(req, res);
+            if (!admin) return;
+            const body = await readBody(req);
+            const { ticketId, adminReply, status } = body;
+            if (!ticketId || !adminReply?.trim()) {
+              return sendJson(res, 400, { success: false, error: 'Ticket ID and resolution reply are required.' });
+            }
+            const ticket = db.resolveSupportTicket(
+              ticketId,
+              adminReply.trim(),
+              status || 'resolved',
+              admin.name || 'Support Desk Administrator'
+            );
+            if (!ticket) {
+              return sendJson(res, 404, { success: false, error: 'Support ticket not found.' });
+            }
+            if (ticket.candidateEmail) {
+              const candidate = db.getCandidateById(ticket.candidateId);
+              if (candidate) {
+                dispatchTicketReplyEmail({
+                  candidate,
+                  ticket,
+                  reply: adminReply.trim(),
+                  env
+                }).catch(err => {
+                  console.warn('Support ticket resolution email dispatch note:', err.message);
+                });
+              }
+            }
+            return sendJson(res, 200, { success: true, ticket });
           }
 
           // -------------------------------------------------------------

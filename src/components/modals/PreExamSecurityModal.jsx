@@ -1,7 +1,7 @@
 import React from 'react';
 import { useExam } from '../../context/ExamContext';
 import { AVAILABLE_SUBJECTS } from '../../data/subjects';
-import { ShieldAlert, Lock, Maximize2, AlertTriangle, ArrowRight, X, CheckCircle2 } from 'lucide-react';
+import { ShieldAlert, Lock, Maximize2, AlertTriangle, ArrowRight, X, CheckCircle2, Globe } from 'lucide-react';
 
 export const PreExamSecurityModal = () => {
   const {
@@ -95,7 +95,7 @@ export const PreExamSecurityModal = () => {
             </div>
             {isFullMock && (
               <div className="text-[11px] text-emerald-800 bg-emerald-100/70 p-2 rounded border border-emerald-300 font-semibold flex items-center gap-1.5">
-                <span>🌐</span>
+                <Globe className="w-3.5 h-3.5 text-emerald-700 flex-shrink-0" />
                 <span>Authentic past questions will be loaded into your secured simulation session.</span>
               </div>
             )}

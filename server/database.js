@@ -230,6 +230,29 @@ function initSchema(db) {
   try { db.exec('ALTER TABLE candidates ADD COLUMN appeal_date TEXT'); } catch (e) {}
   try { db.exec('ALTER TABLE candidates ADD COLUMN practice_id TEXT'); } catch (e) {}
 
+  // 13. Candidate Help Desk & Support Tickets Table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS support_tickets (
+      id TEXT PRIMARY KEY,
+      candidate_id TEXT NOT NULL,
+      candidate_name TEXT,
+      candidate_email TEXT,
+      candidate_phone TEXT,
+      reg_number TEXT,
+      practice_id TEXT,
+      category TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      message TEXT NOT NULL,
+      status TEXT DEFAULT 'open',
+      admin_reply TEXT,
+      admin_replied_by TEXT,
+      created_at TEXT NOT NULL,
+      resolved_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_tickets_candidate ON support_tickets(candidate_id);
+    CREATE INDEX IF NOT EXISTS idx_tickets_status ON support_tickets(status);
+  `);
+
   // Ensure Default Admin Exists
   const adminCheck = db.prepare('SELECT id FROM admin_users WHERE email = ?').get('hello@pauladisa.com');
   if (!adminCheck) {
@@ -1092,6 +1115,163 @@ export function resolveAppeal(appealId, action, adminNotes = '') {
   }
 
   return { success: true, action, candidate: getCandidateById(candidateId) };
+}
+
+// -------------------------------------------------------------
+// Admin Direct Candidate Modification Operations
+// -------------------------------------------------------------
+export function adminUpdateCandidate(id, updates = {}) {
+  const candidate = getCandidateById(id);
+  if (!candidate) return { success: false, error: 'Candidate profile not found.' };
+
+  const db = getDatabase();
+  const now = new Date().toISOString();
+
+  let passwordToSave = undefined;
+  if (updates.password && String(updates.password).trim()) {
+    passwordToSave = String(updates.password).includes(':')
+      ? String(updates.password).trim()
+      : hashPassword(String(updates.password).trim());
+  }
+
+  const name = updates.name !== undefined ? String(updates.name).trim().toUpperCase() : candidate.name;
+  const email = updates.email !== undefined ? String(updates.email).trim().toLowerCase() : candidate.email;
+  const phone = updates.phone !== undefined ? String(updates.phone).trim() : candidate.phone;
+  const gender = updates.gender !== undefined ? String(updates.gender).trim() : candidate.gender;
+  const dob = updates.dob !== undefined ? String(updates.dob).trim() : candidate.dob;
+  const stateOfOrigin = updates.stateOfOrigin !== undefined ? String(updates.stateOfOrigin).trim() : candidate.stateOfOrigin;
+  const lga = updates.lga !== undefined ? String(updates.lga).trim() : candidate.lga;
+  const regNumber = updates.regNumber !== undefined ? String(updates.regNumber).trim().toUpperCase() : candidate.regNumber;
+  const practiceId = updates.practiceId !== undefined ? String(updates.practiceId).trim().toUpperCase() : candidate.practiceId;
+  const profileCode = updates.profileCode !== undefined ? String(updates.profileCode).trim() : candidate.profileCode;
+  const seatNumber = updates.seatNumber !== undefined ? String(updates.seatNumber).trim() : candidate.seatNumber;
+  const status = updates.status !== undefined ? String(updates.status).trim() : candidate.status;
+  const disapprovalReason = updates.disapprovalReason !== undefined ? updates.disapprovalReason : candidate.disapprovalReason;
+  const targetCourse = updates.targetCourse !== undefined ? String(updates.targetCourse).trim() : candidate.targetCourse;
+  const faculty = updates.faculty !== undefined ? String(updates.faculty).trim() : candidate.faculty;
+  const selectedSubjects = updates.selectedSubjects !== undefined ? updates.selectedSubjects : candidate.selectedSubjects;
+  const firstChoice = updates.firstChoice !== undefined ? updates.firstChoice : candidate.firstChoice;
+
+  if (passwordToSave) {
+    db.prepare(`
+      UPDATE candidates SET
+        name = ?, email = ?, phone = ?, gender = ?, dob = ?,
+        state_of_origin = ?, lga = ?, reg_number = ?, practice_id = ?,
+        profile_code = ?, seat_number = ?, status = ?, disapproval_reason = ?,
+        target_course = ?, faculty = ?, selected_subjects = ?, first_choice = ?,
+        password = ?, updated_at = ?
+      WHERE id = ?
+    `).run(
+      name, email, phone, gender, dob,
+      stateOfOrigin, lga, regNumber, practiceId,
+      profileCode, seatNumber, status, disapprovalReason,
+      targetCourse, faculty, JSON.stringify(selectedSubjects), JSON.stringify(firstChoice),
+      passwordToSave, now, id
+    );
+  } else {
+    db.prepare(`
+      UPDATE candidates SET
+        name = ?, email = ?, phone = ?, gender = ?, dob = ?,
+        state_of_origin = ?, lga = ?, reg_number = ?, practice_id = ?,
+        profile_code = ?, seat_number = ?, status = ?, disapproval_reason = ?,
+        target_course = ?, faculty = ?, selected_subjects = ?, first_choice = ?,
+        updated_at = ?
+      WHERE id = ?
+    `).run(
+      name, email, phone, gender, dob,
+      stateOfOrigin, lga, regNumber, practiceId,
+      profileCode, seatNumber, status, disapprovalReason,
+      targetCourse, faculty, JSON.stringify(selectedSubjects), JSON.stringify(firstChoice),
+      now, id
+    );
+  }
+
+  return { success: true, candidate: getCandidateById(id) };
+}
+
+// -------------------------------------------------------------
+// Candidate Help Desk & Support Ticket Operations
+// -------------------------------------------------------------
+export function createSupportTicket({
+  candidateId,
+  category = 'general',
+  subject,
+  message
+}) {
+  const db = getDatabase();
+  const cand = getCandidateById(candidateId);
+  const now = new Date().toISOString();
+  const id = `TKT-2026-${crypto.randomInt(1000, 9999)}`;
+
+  db.prepare(`
+    INSERT INTO support_tickets (
+      id, candidate_id, candidate_name, candidate_email, candidate_phone,
+      reg_number, practice_id, category, subject, message, status, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)
+  `).run(
+    id,
+    candidateId,
+    cand?.name || 'Candidate',
+    cand?.email || '',
+    cand?.phone || '',
+    cand?.regNumber || '',
+    cand?.practiceId || '',
+    category,
+    subject.trim(),
+    message.trim(),
+    now
+  );
+
+  return getSupportTicketById(id);
+}
+
+export function getSupportTicketById(id) {
+  const db = getDatabase();
+  const row = db.prepare('SELECT * FROM support_tickets WHERE id = ?').get(id);
+  return row ? formatTicketRow(row) : null;
+}
+
+export function getSupportTickets(candidateId = null) {
+  const db = getDatabase();
+  let rows;
+  if (candidateId) {
+    rows = db.prepare('SELECT * FROM support_tickets WHERE candidate_id = ? ORDER BY created_at DESC').all(candidateId);
+  } else {
+    rows = db.prepare('SELECT * FROM support_tickets ORDER BY created_at DESC LIMIT 200').all();
+  }
+  return rows.map(formatTicketRow);
+}
+
+export function resolveSupportTicket(ticketId, adminReply, newStatus = 'resolved', adminName = 'Support Desk Administrator') {
+  const db = getDatabase();
+  const now = new Date().toISOString();
+  db.prepare(`
+    UPDATE support_tickets
+    SET status = ?, admin_reply = ?, admin_replied_by = ?, resolved_at = ?
+    WHERE id = ?
+  `).run(newStatus, adminReply.trim(), adminName, now, ticketId);
+
+  return getSupportTicketById(ticketId);
+}
+
+function formatTicketRow(r) {
+  return {
+    id: r.id,
+    candidateId: r.candidate_id,
+    candidateName: r.candidate_name,
+    candidateEmail: r.candidate_email,
+    candidatePhone: r.candidate_phone,
+    regNumber: r.reg_number,
+    practiceId: r.practice_id,
+    category: r.category,
+    subject: r.subject,
+    message: r.message,
+    status: r.status,
+    adminReply: r.admin_reply,
+    adminRepliedBy: r.admin_replied_by,
+    createdAt: r.created_at,
+    resolvedAt: r.resolved_at
+  };
 }
 
 function safeJsonParse(str, fallback) {

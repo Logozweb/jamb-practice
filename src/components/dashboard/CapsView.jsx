@@ -76,7 +76,7 @@ export const CapsView = () => {
                 <CheckCircle2 className="w-8 h-8 text-emerald-600 flex-shrink-0" />
                 <div>
                   <h3 className="text-base sm:text-lg font-black uppercase">
-                    Admission Offer Accepted! 🎉
+                    Admission Offer Accepted
                   </h3>
                   <p className="text-xs text-emerald-800">
                     You have formally accepted your admission offer into <strong>{caps.institution}</strong>.
@@ -109,14 +109,14 @@ export const CapsView = () => {
             <div className="p-6 bg-amber-50 border-2 border-amber-400 rounded-2xl text-amber-950 space-y-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-amber-400 text-slate-900 flex items-center justify-center font-black">
-                  🎓
+                  <GraduationCap className="w-5 h-5 text-slate-900" />
                 </div>
                 <div>
                   <h3 className="text-base sm:text-lg font-black uppercase text-amber-950">
                     Congratulations! Admission Recommended
                   </h3>
                   <p className="text-xs text-amber-800">
-                    The Joint Admissions and Matriculation Board has approved your admission.
+                    Your provisional simulation admission has been recommended.
                   </p>
                 </div>
               </div>
@@ -191,7 +191,10 @@ export const CapsView = () => {
                       <td className="p-2.5 font-medium text-slate-600">{currentUser.olevel.examType}</td>
                       <td className="p-2.5 font-bold text-slate-800">{subj.name}</td>
                       <td className="p-2.5 text-center font-mono font-bold text-emerald-800">{subj.grade}</td>
-                      <td className="p-2.5 text-center text-emerald-700 font-bold">Verified ✓</td>
+                      <td className="p-2.5 text-center text-emerald-700 font-bold inline-flex items-center justify-center gap-1 w-full">
+                        <span>Verified</span>
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      </td>
                     </tr>
                   ))}
                 </tbody>

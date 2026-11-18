@@ -328,8 +328,9 @@ export const ForgotPasswordModal = ({ isOpen, onClose, role = 'candidate', onSuc
               </div>
 
               {resendNotice && (
-                <div className="p-2.5 bg-blue-50 border border-blue-300 rounded-lg text-blue-900 text-xs font-semibold text-center">
-                  ✓ A new verification code has been dispatched to your email!
+                <div className="p-2.5 bg-blue-50 border border-blue-300 rounded-lg text-blue-900 text-xs font-semibold text-center flex items-center justify-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                  <span>A new verification code has been dispatched to your email!</span>
                 </div>
               )}
 

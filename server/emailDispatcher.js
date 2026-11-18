@@ -594,3 +594,151 @@ export async function dispatchAppealDecisionEmail({ candidate, action, notes = '
     return { success: false, error: err.message };
   });
 }
+
+export function buildTicketAckEmailHtml({ candidate, ticket }) {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 540px; padding: 24px; border: 1px solid #0284c7; border-radius: 12px; margin: auto; background-color: #fafafa;">
+      <div style="background: #0369a1; color: white; padding: 20px; text-align: center; border-radius: 8px;">
+        <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; color: #bae6fd;">Independent UTME CBT Simulator</div>
+        <h2 style="margin: 6px 0 0; font-size: 18px; text-transform: uppercase;">Support Request Acknowledged</h2>
+        <p style="margin: 4px 0 0; font-size: 12px; color: #e0f2fe;">Candidate Help Desk &amp; Technical Support</p>
+      </div>
+
+      <div style="padding: 20px; background-color: white; border-radius: 8px; margin-top: 15px; border: 1px solid #e0e0e0;">
+        <div style="display: inline-block; background-color: #e0f2fe; color: #0369a1; padding: 6px 12px; border-radius: 999px; font-size: 11px; font-weight: bold; margin-bottom: 15px; letter-spacing: 0.5px;">
+          TICKET ID: ${ticket.id} • STATUS: OPEN
+        </div>
+
+        <p style="margin: 0 0 12px; font-size: 14px; color: #333;">
+          Dear <strong>${candidate.name || 'Candidate'}</strong>,
+        </p>
+
+        <p style="margin: 0 0 15px; font-size: 13px; color: #555; line-height: 1.5;">
+          We have received your support inquiry regarding <strong>"${ticket.subject}"</strong>. A support officer is reviewing your submission and will provide a resolution shortly.
+        </p>
+
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin: 15px 0;">
+          <table style="width: 100%; font-size: 12px; color: #333; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 4px 0; color: #666;">Tracking Ticket:</td>
+              <td style="padding: 4px 0; font-weight: bold; font-family: monospace; color: #0369a1;">${ticket.id}</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 0; color: #666;">Practice ID:</td>
+              <td style="padding: 4px 0; font-weight: bold; font-family: monospace;">${candidate.practiceId || 'N/A'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 0; color: #666;">Category:</td>
+              <td style="padding: 4px 0; font-weight: bold; text-transform: uppercase;">${ticket.category}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0 2px 0; color: #666; vertical-align: top;">Submitted Message:</td>
+              <td style="padding: 6px 0 2px 0; font-style: italic; color: #475569;">"${ticket.message}"</td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="margin: 15px 0; padding: 12px; background-color: #f0f9ff; border-radius: 8px; border: 1px solid #bae6fd;">
+          <strong style="color: #0369a1; font-size: 12px; display: block; margin-bottom: 4px;">Desk Response Commitment:</strong>
+          <p style="margin: 0; font-size: 12px; color: #0c4a6e; line-height: 1.5;">
+            Our support desk operates Monday through Saturday, 8:00 AM – 8:00 PM. Typical resolution is provided within 15–30 minutes during active hours.
+          </p>
+        </div>
+      </div>
+
+      <div style="text-align: center; margin-top: 16px; font-size: 11px; color: #888; line-height: 1.4;">
+        Independent UTME CBT Simulator • Candidate Support Service<br/>
+        This platform is an independent educational tool and is not affiliated with the Joint Admissions and Matriculation Board (JAMB).
+      </div>
+    </div>
+  `;
+}
+
+export async function dispatchTicketAckEmail({ candidate, ticket, env = {} }) {
+  const cleanTo = (candidate?.email || '').trim().toLowerCase();
+  if (!cleanTo || !cleanTo.includes('@')) {
+    return { success: false, error: 'Candidate email address is invalid.' };
+  }
+
+  const subject = `Support Request Acknowledged: ${ticket.id} - ${ticket.subject}`;
+  const html = buildTicketAckEmailHtml({ candidate, ticket });
+
+  return dispatchEmail({
+    to: cleanTo,
+    candidateName: candidate.name,
+    subject,
+    html,
+    env
+  }).catch(err => {
+    console.warn('Ticket ack email dispatch note:', err.message);
+    return { success: false, error: err.message };
+  });
+}
+
+export function buildTicketReplyEmailHtml({ candidate, ticket, reply }) {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 540px; padding: 24px; border: 1px solid #006633; border-radius: 12px; margin: auto; background-color: #fafafa;">
+      <div style="background: #004d25; color: white; padding: 20px; text-align: center; border-radius: 8px;">
+        <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; color: #ffc107;">Independent UTME CBT Simulator</div>
+        <h2 style="margin: 6px 0 0; font-size: 18px; text-transform: uppercase;">Support Resolution Notice</h2>
+        <p style="margin: 4px 0 0; font-size: 12px; color: #a7f3d0;">Administrator Official Response</p>
+      </div>
+
+      <div style="padding: 20px; background-color: white; border-radius: 8px; margin-top: 15px; border: 1px solid #e0e0e0;">
+        <div style="display: inline-block; background-color: #dcfce7; color: #166534; padding: 6px 12px; border-radius: 999px; font-size: 11px; font-weight: bold; margin-bottom: 15px; letter-spacing: 0.5px;">
+          TICKET ID: ${ticket.id} • RESOLUTION DISPATCHED
+        </div>
+
+        <p style="margin: 0 0 12px; font-size: 14px; color: #333;">
+          Dear <strong>${candidate.name || 'Candidate'}</strong>,
+        </p>
+
+        <p style="margin: 0 0 15px; font-size: 13px; color: #555; line-height: 1.5;">
+          An administrator has reviewed your inquiry (<strong>"${ticket.subject}"</strong>) and provided the official resolution below:
+        </p>
+
+        <div style="background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 8px; padding: 16px; margin: 15px 0;">
+          <strong style="color: #166534; font-size: 12px; display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Official Administrator Response:</strong>
+          <div style="font-size: 13px; color: #14532d; line-height: 1.6; white-space: pre-wrap;">
+${reply}
+          </div>
+        </div>
+
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin: 15px 0; font-size: 12px; color: #64748b;">
+          <div><strong>Ticket ID:</strong> ${ticket.id}</div>
+          <div style="margin-top: 4px;"><strong>Your Original Inquiry:</strong> "${ticket.message}"</div>
+        </div>
+
+        <p style="margin: 15px 0 0; font-size: 12px; color: #555; line-height: 1.5;">
+          You can also review this resolution and all ongoing correspondence anytime by logging into your candidate dashboard and selecting the <strong>Help Desk</strong> tab.
+        </p>
+      </div>
+
+      <div style="text-align: center; margin-top: 16px; font-size: 11px; color: #888; line-height: 1.4;">
+        Independent UTME CBT Simulator • Candidate Support Service<br/>
+        This platform is an independent educational tool and is not affiliated with the Joint Admissions and Matriculation Board (JAMB).
+      </div>
+    </div>
+  `;
+}
+
+export async function dispatchTicketReplyEmail({ candidate, ticket, reply, env = {} }) {
+  const cleanTo = (candidate?.email || '').trim().toLowerCase();
+  if (!cleanTo || !cleanTo.includes('@')) {
+    return { success: false, error: 'Candidate email address is invalid.' };
+  }
+
+  const subject = `Support Resolution: ${ticket.id} - ${ticket.subject}`;
+  const html = buildTicketReplyEmailHtml({ candidate, ticket, reply });
+
+  return dispatchEmail({
+    to: cleanTo,
+    candidateName: candidate.name,
+    subject,
+    html,
+    env
+  }).catch(err => {
+    console.warn('Ticket reply email dispatch note:', err.message);
+    return { success: false, error: err.message };
+  });
+}

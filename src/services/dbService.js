@@ -250,3 +250,65 @@ export async function apiResolveAppeal(appealId, action, adminNotes = '') {
     return { success: false, error: 'Failed communicating appeal resolution to server.' };
   }
 }
+
+// -------------------------------------------------------------
+// Admin Direct Candidate Modification API
+// -------------------------------------------------------------
+export async function apiAdminUpdateCandidate(candidateId, updates) {
+  try {
+    const res = await fetch(`/api/candidates/${encodeURIComponent(candidateId)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
+      body: JSON.stringify(updates)
+    });
+    return await res.json();
+  } catch (err) {
+    return { success: false, error: 'Failed connecting to server to update candidate.' };
+  }
+}
+
+// -------------------------------------------------------------
+// Candidate Help Desk & Support Ticket API
+// -------------------------------------------------------------
+export async function apiGetSupportTickets(candidateId = null) {
+  try {
+    const url = candidateId
+      ? `/api/support/tickets?candidateId=${encodeURIComponent(candidateId)}`
+      : '/api/support/tickets';
+    const headers = candidateId ? {} : getAdminAuthHeaders();
+    const res = await fetch(url, { headers });
+    if (res.ok) {
+      const data = await res.json();
+      return data.tickets || [];
+    }
+  } catch (err) {
+    console.warn('Failed fetching support tickets:', err);
+  }
+  return [];
+}
+
+export async function apiSubmitSupportTicket({ candidateId, category, subject, message }) {
+  try {
+    const res = await fetch('/api/support/tickets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ candidateId, category, subject, message })
+    });
+    return await res.json();
+  } catch (err) {
+    return { success: false, error: 'Could not connect to server to submit support request.' };
+  }
+}
+
+export async function apiResolveSupportTicket({ ticketId, adminReply, status = 'resolved' }) {
+  try {
+    const res = await fetch('/api/support/tickets/resolve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
+      body: JSON.stringify({ ticketId, adminReply, status })
+    });
+    return await res.json();
+  } catch (err) {
+    return { success: false, error: 'Failed communicating resolution to server.' };
+  }
+}

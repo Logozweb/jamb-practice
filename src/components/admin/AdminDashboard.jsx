@@ -2,7 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useExam } from '../../context/ExamContext';
 import { AVAILABLE_SUBJECTS } from '../../data/subjects';
 import { testAlocApiKey } from '../../services/jambApiService';
-import { apiGetExamResults, apiGetAppeals, apiResolveAppeal } from '../../services/dbService';
+import {
+  apiGetExamResults,
+  apiGetAppeals,
+  apiResolveAppeal,
+  apiAdminUpdateCandidate,
+  apiGetSupportTickets,
+  apiResolveSupportTicket
+} from '../../services/dbService';
 import {
   getEmailSettings,
   fetchEmailSettings,
@@ -52,7 +59,14 @@ import {
   ChevronLeft,
   ChevronRight,
   CreditCard,
-  FileText
+  FileText,
+  Edit3,
+  HelpCircle,
+  MessageSquare,
+  Phone,
+  X,
+  BookOpen,
+  GraduationCap
 } from 'lucide-react';
 import { SearchableSelect } from '../common/SearchableSelect';
 
@@ -182,6 +196,172 @@ export const AdminDashboard = () => {
     }
   };
 
+  // Support Tickets State
+  const [supportTickets, setSupportTickets] = useState([]);
+  const [isLoadingTickets, setIsLoadingTickets] = useState(false);
+  const [ticketFilter, setTicketFilter] = useState('all'); // 'all' | 'open' | 'in_progress' | 'resolved'
+  const [ticketSearchTerm, setTicketSearchTerm] = useState('');
+  const [ticketReplyNotes, setTicketReplyNotes] = useState({});
+  const [ticketReplyStatus, setTicketReplyStatus] = useState({});
+  const [ticketActionLoading, setTicketActionLoading] = useState(null);
+
+  const loadSupportTickets = async () => {
+    setIsLoadingTickets(true);
+    try {
+      const tickets = await apiGetSupportTickets();
+      if (Array.isArray(tickets)) {
+        setSupportTickets(tickets);
+      }
+    } catch (e) {
+      console.warn('Failed loading support tickets:', e);
+    } finally {
+      setIsLoadingTickets(false);
+    }
+  };
+
+  const handleResolveTicket = async (ticketId) => {
+    const reply = ticketReplyNotes[ticketId] || '';
+    if (!reply.trim()) {
+      alert('Please enter an official response or resolution explanation for the candidate.');
+      return;
+    }
+    const status = ticketReplyStatus[ticketId] || 'resolved';
+    setTicketActionLoading(ticketId);
+    try {
+      const res = await apiResolveSupportTicket({ ticketId, adminReply: reply.trim(), status });
+      if (res && res.success) {
+        await loadSupportTickets();
+        setTicketReplyNotes(prev => ({ ...prev, [ticketId]: '' }));
+      } else {
+        alert(res?.error || 'Failed to update support ticket.');
+      }
+    } catch (err) {
+      alert('Error updating support ticket resolution.');
+    } finally {
+      setTicketActionLoading(null);
+    }
+  };
+
+  // Candidate Direct Edit Modal State
+  const [editTarget, setEditTarget] = useState(null);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    gender: 'Male',
+    dob: '2006-05-15',
+    stateOfOrigin: 'Lagos',
+    lga: 'Ikeja',
+    regNumber: '',
+    practiceId: '',
+    profileCode: '',
+    seatNumber: '',
+    status: 'Approved',
+    disapprovalReason: '',
+    targetCourse: '',
+    faculty: 'Sciences',
+    selectedSubjects: ['english', 'mathematics', 'physics', 'chemistry'],
+    firstChoiceInst: '',
+    firstChoiceCourse: '',
+    newPassword: ''
+  });
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editError, setEditError] = useState('');
+  const [editSuccess, setEditSuccess] = useState(false);
+
+  const handleOpenEdit = (cand) => {
+    setEditTarget(cand);
+    setEditError('');
+    setEditSuccess(false);
+    setEditForm({
+      name: cand.name || '',
+      email: cand.email || '',
+      phone: cand.phone || '',
+      gender: cand.gender || 'Male',
+      dob: cand.dob || '2006-05-15',
+      stateOfOrigin: cand.stateOfOrigin || 'Lagos',
+      lga: cand.lga || 'Ikeja',
+      regNumber: cand.regNumber || '',
+      practiceId: cand.practiceId || '',
+      profileCode: cand.profileCode || '',
+      seatNumber: cand.seatNumber || 'Virtual Desk 14',
+      status: cand.status || 'Approved',
+      disapprovalReason: cand.disapprovalReason || '',
+      targetCourse: cand.targetCourse || cand.firstChoice?.course || 'General Programme',
+      faculty: cand.faculty || 'Sciences',
+      selectedSubjects: Array.isArray(cand.selectedSubjects) ? [...cand.selectedSubjects] : ['english', 'mathematics', 'physics', 'chemistry'],
+      firstChoiceInst: cand.firstChoice?.institution || '',
+      firstChoiceCourse: cand.firstChoice?.course || '',
+      newPassword: ''
+    });
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (!editForm.name.trim()) {
+      setEditError('Candidate full name is required.');
+      return;
+    }
+    if (!editForm.email.trim() || !editForm.email.includes('@')) {
+      setEditError('A valid candidate email address is required.');
+      return;
+    }
+    if (editForm.selectedSubjects.length !== 4) {
+      setEditError('Candidate must have exactly 4 UTME subjects (English is compulsory).');
+      return;
+    }
+
+    setIsSavingEdit(true);
+    setEditError('');
+    try {
+      const payload = {
+        name: editForm.name.trim(),
+        email: editForm.email.trim(),
+        phone: editForm.phone.trim(),
+        gender: editForm.gender,
+        dob: editForm.dob,
+        stateOfOrigin: editForm.stateOfOrigin,
+        lga: editForm.lga,
+        regNumber: editForm.regNumber.trim(),
+        practiceId: editForm.practiceId.trim(),
+        profileCode: editForm.profileCode.trim(),
+        seatNumber: editForm.seatNumber.trim(),
+        status: editForm.status,
+        disapprovalReason: editForm.disapprovalReason ? editForm.disapprovalReason.trim() : null,
+        targetCourse: editForm.targetCourse.trim(),
+        faculty: editForm.faculty,
+        selectedSubjects: editForm.selectedSubjects,
+        firstChoice: {
+          institution: editForm.firstChoiceInst.trim(),
+          course: editForm.firstChoiceCourse.trim() || editForm.targetCourse.trim(),
+          faculty: editForm.faculty
+        }
+      };
+      if (editForm.newPassword && editForm.newPassword.trim()) {
+        payload.password = editForm.newPassword.trim();
+      }
+
+      const res = await apiAdminUpdateCandidate(editTarget.id, payload);
+      if (res && res.success) {
+        setEditSuccess(true);
+        await refreshCandidates();
+        if (inspectTarget && inspectTarget.id === editTarget.id) {
+          setInspectTarget(res.candidate);
+        }
+        setTimeout(() => {
+          setEditSuccess(false);
+          setEditTarget(null);
+        }, 1200);
+      } else {
+        setEditError(res?.error || 'Failed to update candidate record.');
+      }
+    } catch (err) {
+      setEditError('Network error saving candidate modifications.');
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
   useEffect(() => {
     async function syncAllDataFromDatabase() {
       try {
@@ -191,6 +371,7 @@ export const AdminDashboard = () => {
           handleRefreshOutbox(),
           loadPaymentData(),
           loadAppeals(),
+          loadSupportTickets(),
           fetchEmailSettings().then(cfg => { if (cfg) setEmailConfig(cfg); })
         ]);
       } catch (err) {
@@ -576,7 +757,7 @@ export const AdminDashboard = () => {
       {/* Main Admin Body */}
       <main className="max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6 flex-1">
         {/* KPI Summary Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
             <div className="text-[11px] font-bold text-slate-500 uppercase">Total Candidates</div>
             <div className="text-2xl font-black text-slate-900 mt-1">{totalCandidates}</div>
@@ -605,6 +786,13 @@ export const AdminDashboard = () => {
           <div className={`p-4 rounded-xl border shadow-sm ${pendingAppeals.length > 0 ? 'bg-rose-50 border-rose-300' : 'bg-white border-slate-200'}`}>
             <div className={`text-[11px] font-bold uppercase ${pendingAppeals.length > 0 ? 'text-rose-800' : 'text-slate-500'}`}>Pending Appeals</div>
             <div className={`text-2xl font-black mt-1 ${pendingAppeals.length > 0 ? 'text-rose-700 animate-pulse' : 'text-slate-900'}`}>{pendingAppeals.length}</div>
+          </div>
+
+          <div className={`p-4 rounded-xl border shadow-sm ${supportTickets.filter(t => t.status === 'open').length > 0 ? 'bg-blue-50 border-blue-300' : 'bg-white border-slate-200'}`}>
+            <div className={`text-[11px] font-bold uppercase ${supportTickets.filter(t => t.status === 'open').length > 0 ? 'text-blue-800' : 'text-slate-500'}`}>Support Tickets</div>
+            <div className={`text-2xl font-black mt-1 ${supportTickets.filter(t => t.status === 'open').length > 0 ? 'text-blue-700 animate-pulse' : 'text-slate-900'}`}>
+              {supportTickets.filter(t => t.status === 'open').length}
+            </div>
           </div>
 
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -646,6 +834,26 @@ export const AdminDashboard = () => {
               </span>
             ) : (
               <span>({appeals.length})</span>
+            )}
+          </button>
+
+          <button
+            onClick={() => { setActiveTab('support'); loadSupportTickets(); }}
+            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 font-bold text-xs sm:text-sm border-b-2 transition-all whitespace-nowrap ${
+              activeTab === 'support'
+                ? 'border-blue-600 text-blue-700 bg-blue-50/50 rounded-t-lg'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <HelpCircle className="w-4 h-4 text-blue-600" />
+            <span className="hidden sm:inline">Help Desk &amp; Inquiries</span>
+            <span className="sm:hidden">Help Desk</span>
+            {supportTickets.filter(t => t.status === 'open').length > 0 ? (
+              <span className="px-2 py-0.5 rounded-full bg-blue-600 text-white text-[10px] font-black animate-pulse">
+                {supportTickets.filter(t => t.status === 'open').length} Open
+              </span>
+            ) : (
+              <span>({supportTickets.length})</span>
             )}
           </button>
 
@@ -915,7 +1123,8 @@ export const AdminDashboard = () => {
                                     className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-600 text-white text-[9px] font-black uppercase tracking-wider animate-pulse hover:bg-rose-700 transition-colors shadow-sm cursor-pointer"
                                     title="Click to view candidate appeal in Disciplinary Console"
                                   >
-                                    🚨 Appeal Pending
+                                    <AlertTriangle className="w-2.5 h-2.5 text-white" />
+                                    <span>Appeal Pending</span>
                                   </button>
                                 )}
                               </div>
@@ -940,7 +1149,8 @@ export const AdminDashboard = () => {
                                     className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-600 text-white text-[9px] font-black uppercase tracking-wider animate-pulse hover:bg-rose-700 transition-colors shadow-sm cursor-pointer"
                                     title="Click to view candidate appeal in Disciplinary Console"
                                   >
-                                    🚨 Appeal Pending
+                                    <AlertTriangle className="w-2.5 h-2.5 text-white" />
+                                    <span>Appeal Pending</span>
                                   </button>
                                 )}
                               </div>
@@ -957,6 +1167,15 @@ export const AdminDashboard = () => {
                                 title="Inspect Candidate File & History"
                               >
                                 <Eye className="w-4 h-4" />
+                              </button>
+
+                              {/* Edit candidate details */}
+                              <button
+                                onClick={() => handleOpenEdit(cand)}
+                                className="p-1.5 rounded hover:bg-blue-100 text-blue-600 transition-colors"
+                                title="Edit Full Candidate Profile & Details"
+                              >
+                                <Edit3 className="w-4 h-4" />
                               </button>
 
                               {/* Review Appeal shortcut button */}
@@ -1308,6 +1527,283 @@ export const AdminDashboard = () => {
                     </div>
                   );
                 })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB: Candidate Help Desk & Support Inquiries */}
+        {activeTab === 'support' && (
+          <div className="bg-white rounded-b-xl rounded-tr-xl border border-slate-300 p-5 shadow-sm space-y-5 animate-in fade-in">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
+              <div>
+                <h2 className="text-sm font-black uppercase text-slate-900 tracking-wider flex items-center gap-2">
+                  <HelpCircle className="w-4 h-4 text-blue-600" />
+                  <span>Candidate Help Desk &amp; Inquiry Center</span>
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Audit candidate questions, payment inquiries, subject combination requests, and dispatch official email resolutions.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={loadSupportTickets}
+                disabled={isLoadingTickets}
+                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold border border-slate-300 transition-all flex items-center gap-1.5 shadow-sm"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isLoadingTickets ? 'animate-spin' : ''}`} />
+                <span>Refresh Inquiries</span>
+              </button>
+            </div>
+
+            {/* Filter & Search Bar */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="relative w-full sm:w-80">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                <input
+                  type="text"
+                  value={ticketSearchTerm}
+                  onChange={(e) => setTicketSearchTerm(e.target.value)}
+                  placeholder="Search by ticket ID, student, subject..."
+                  className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500/20"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setTicketFilter('all')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    ticketFilter === 'all'
+                      ? 'bg-slate-900 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  All ({supportTickets.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTicketFilter('open')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    ticketFilter === 'open'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                  }`}
+                >
+                  Open ({supportTickets.filter(t => t.status === 'open').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTicketFilter('in_progress')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    ticketFilter === 'in_progress'
+                      ? 'bg-amber-600 text-white'
+                      : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                  }`}
+                >
+                  In Review ({supportTickets.filter(t => t.status === 'in_progress').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTicketFilter('resolved')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    ticketFilter === 'resolved'
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                  }`}
+                >
+                  Resolved ({supportTickets.filter(t => t.status === 'resolved').length})
+                </button>
+              </div>
+            </div>
+
+            {/* Tickets List */}
+            {isLoadingTickets ? (
+              <div className="p-12 text-center text-slate-500 space-y-2">
+                <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+                <div className="text-xs font-bold">Synchronizing candidate inquiries...</div>
+              </div>
+            ) : supportTickets.filter(t => {
+                if (ticketFilter !== 'all' && t.status !== ticketFilter) return false;
+                if (!ticketSearchTerm.trim()) return true;
+                const term = ticketSearchTerm.toLowerCase();
+                return (
+                  t.id.toLowerCase().includes(term) ||
+                  (t.candidateName || '').toLowerCase().includes(term) ||
+                  (t.candidateEmail || '').toLowerCase().includes(term) ||
+                  (t.subject || '').toLowerCase().includes(term) ||
+                  (t.message || '').toLowerCase().includes(term)
+                );
+              }).length === 0 ? (
+              <div className="p-12 text-center text-slate-500 border border-dashed border-slate-300 rounded-xl space-y-2">
+                <ShieldCheck className="w-10 h-10 text-emerald-600 mx-auto" />
+                <div className="text-sm font-bold text-slate-800">No Support Inquiries in this Queue</div>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  {ticketFilter === 'open'
+                    ? 'All candidate questions and issues have been resolved. Great job!'
+                    : 'Candidate inquiries submitted via their dashboard will appear here.'}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {supportTickets
+                  .filter(t => {
+                    if (ticketFilter !== 'all' && t.status !== ticketFilter) return false;
+                    if (!ticketSearchTerm.trim()) return true;
+                    const term = ticketSearchTerm.toLowerCase();
+                    return (
+                      t.id.toLowerCase().includes(term) ||
+                      (t.candidateName || '').toLowerCase().includes(term) ||
+                      (t.candidateEmail || '').toLowerCase().includes(term) ||
+                      (t.subject || '').toLowerCase().includes(term) ||
+                      (t.message || '').toLowerCase().includes(term)
+                    );
+                  })
+                  .map(ticket => {
+                    const isOpen = ticket.status === 'open';
+                    const isBusy = ticketActionLoading === ticket.id;
+
+                    return (
+                      <div
+                        key={ticket.id}
+                        className={`border rounded-2xl p-5 shadow-sm transition-all space-y-4 ${
+                          isOpen
+                            ? 'border-blue-400 bg-blue-50/20'
+                            : ticket.status === 'in_progress'
+                            ? 'border-amber-400 bg-amber-50/20'
+                            : 'border-slate-200 bg-white'
+                        }`}
+                      >
+                        {/* Ticket Card Header */}
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/60">
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-bold text-xs bg-slate-100 text-blue-900 px-2 py-0.5 rounded border border-slate-300">
+                                {ticket.id}
+                              </span>
+                              <h3 className="text-sm font-black uppercase tracking-tight text-slate-900">
+                                {ticket.candidateName || 'Candidate'}
+                              </h3>
+                              <span className="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-slate-100 text-slate-700 uppercase">
+                                {ticket.category}
+                              </span>
+                            </div>
+                            <div className="text-xs font-mono text-slate-500">
+                              Practice ID: <strong>{ticket.practiceId || 'N/A'}</strong> • Reg No: <strong>{ticket.regNumber || 'N/A'}</strong> • Email: {ticket.candidateEmail} • Tel: {ticket.candidatePhone || 'N/A'}
+                            </div>
+                            <div className="text-[11px] text-slate-400">
+                              Submitted: {new Date(ticket.createdAt).toLocaleString()}
+                            </div>
+                          </div>
+
+                          <div className="self-start sm:self-auto">
+                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-black text-xs uppercase ${
+                              ticket.status === 'resolved'
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                : ticket.status === 'in_progress'
+                                ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                                : 'bg-blue-100 text-blue-800 border border-blue-300 animate-pulse'
+                            }`}>
+                              {ticket.status === 'resolved' ? (
+                                <>
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span>Resolved</span>
+                                </>
+                              ) : ticket.status === 'in_progress' ? (
+                                <>
+                                  <Clock className="w-3.5 h-3.5 text-amber-600" />
+                                  <span>In Review</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Clock className="w-3.5 h-3.5 text-blue-600" />
+                                  <span>Open Ticket</span>
+                                </>
+                              )}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Ticket Subject & Inquiry Message */}
+                        <div className="p-4 rounded-xl border bg-white border-slate-200 text-xs leading-relaxed space-y-1.5">
+                          <div className="font-bold text-slate-900 text-xs">
+                            Subject: {ticket.subject}
+                          </div>
+                          <p className="text-slate-700 whitespace-pre-wrap pl-4 border-l-2 border-blue-500 font-medium">
+                            {ticket.message}
+                          </p>
+                        </div>
+
+                        {/* Existing Admin Reply (if already resolved) */}
+                        {ticket.adminReply && (
+                          <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-xl text-xs space-y-1">
+                            <div className="flex items-center justify-between text-[10px] font-black uppercase text-emerald-900">
+                              <span className="flex items-center gap-1">
+                                <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+                                <span>Official Administrator Response ({ticket.adminRepliedBy || 'Administrator'}):</span>
+                              </span>
+                              <span className="font-mono text-emerald-700 font-normal">
+                                {ticket.resolvedAt ? new Date(ticket.resolvedAt).toLocaleString() : 'Recent'}
+                              </span>
+                            </div>
+                            <div className="text-emerald-950 font-medium whitespace-pre-wrap pl-4 border-l-2 border-emerald-600">
+                              {ticket.adminReply}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Admin Resolution Section */}
+                        <div className="space-y-2 pt-1 border-t border-slate-100">
+                          <label className="block text-[11px] font-bold text-slate-700 uppercase">
+                            {ticket.adminReply ? 'Update Resolution / Additional Notes:' : 'Compose Official Administrator Resolution:'}
+                          </label>
+                          <textarea
+                            rows={3}
+                            value={ticketReplyNotes[ticket.id] !== undefined ? ticketReplyNotes[ticket.id] : (ticket.adminReply || '')}
+                            onChange={(e) => setTicketReplyNotes(prev => ({ ...prev, [ticket.id]: e.target.value }))}
+                            placeholder="Type the official answer or instructions for the student. An automated email with this resolution will be dispatched to their registered email address..."
+                            className="w-full p-2.5 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500/20 bg-white"
+                          />
+
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] font-bold text-slate-600 uppercase">Set Status:</span>
+                              <select
+                                value={ticketReplyStatus[ticket.id] || (ticket.status === 'open' ? 'resolved' : ticket.status)}
+                                onChange={(e) => setTicketReplyStatus(prev => ({ ...prev, [ticket.id]: e.target.value }))}
+                                className="px-2.5 py-1 rounded-lg border border-slate-300 text-xs font-bold text-slate-700 bg-white"
+                              >
+                                <option value="resolved">Mark as Resolved</option>
+                                <option value="in_progress">Mark as In Progress</option>
+                                <option value="open">Keep Open</option>
+                              </select>
+                            </div>
+
+                            <button
+                              type="button"
+                              disabled={isBusy}
+                              onClick={() => handleResolveTicket(ticket.id)}
+                              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50"
+                            >
+                              {isBusy ? (
+                                <>
+                                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                  <span>Dispatching Resolution...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Send className="w-3.5 h-3.5" />
+                                  <span>Dispatch Resolution Email &amp; Save</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
               </div>
             )}
           </div>
@@ -1689,7 +2185,7 @@ export const AdminDashboard = () => {
                       onClick={() => setGoogleNotice(null)}
                       className="text-slate-500 hover:text-slate-800 ml-2"
                     >
-                      ✕
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 )}
@@ -2860,8 +3356,12 @@ export const AdminDashboard = () => {
               <h3 className="text-sm font-black uppercase text-slate-900">
                 Candidate File Inspection
               </h3>
-              <button onClick={() => setInspectTarget(null)} className="text-slate-400 hover:text-slate-700 text-xs font-bold">
-                ✕ Close
+              <button
+                onClick={() => setInspectTarget(null)}
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition-colors"
+                title="Close"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -2901,18 +3401,18 @@ export const AdminDashboard = () => {
             </div>
 
             <div className="flex items-center justify-between pt-3 border-t">
-              {(inspectTarget.status === 'Suspended' || inspectTarget.malpracticeBlocked) ? (
-                <button
-                  onClick={() => {
-                    approveCandidate(inspectTarget.id);
-                    setInspectTarget(prev => ({ ...prev, status: 'Approved', malpracticeBlocked: false }));
-                  }}
-                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm"
-                >
-                  <Check className="w-3.5 h-3.5" />
-                  <span>Re-instate Candidate Clearance</span>
-                </button>
-              ) : <div />}
+              <button
+                type="button"
+                onClick={() => {
+                  const target = inspectTarget;
+                  setInspectTarget(null);
+                  handleOpenEdit(target);
+                }}
+                className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>Edit Full Profile</span>
+              </button>
 
               <button
                 onClick={() => setInspectTarget(null)}
@@ -2938,9 +3438,10 @@ export const AdminDashboard = () => {
               </div>
               <button
                 onClick={() => setIsAddCandidateOpen(false)}
-                className="text-slate-400 hover:text-slate-700 text-xs font-bold"
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition-colors"
+                title="Close"
               >
-                ✕ Close
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -3130,6 +3631,337 @@ export const AdminDashboard = () => {
                 >
                   <UserPlus className="w-3.5 h-3.5" />
                   <span>Register & Approve Candidate</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Candidate Direct Edit Modal */}
+      {editTarget && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in">
+          <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border-2 border-blue-600 overflow-hidden my-auto max-h-[92vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="bg-blue-700 text-white p-4 sm:p-5 flex items-center justify-between border-b-2 border-blue-800 flex-shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center text-white">
+                  <Edit3 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-black uppercase tracking-wide">
+                    Edit Candidate Profile &amp; Records
+                  </h3>
+                  <p className="text-[11px] text-blue-100 font-mono">
+                    ID: {editTarget.id} • Practice ID: {editTarget.practiceId}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditTarget(null)}
+                className="text-white/80 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                title="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body Form */}
+            <form onSubmit={handleSaveEdit} className="p-4 sm:p-6 overflow-y-auto space-y-4 text-xs flex-1">
+              {editSuccess && (
+                <div className="p-3 bg-emerald-50 border border-emerald-400 rounded-xl text-emerald-900 font-bold flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span>Candidate profile successfully updated and synchronized!</span>
+                </div>
+              )}
+
+              {editError && (
+                <div className="p-3 bg-rose-50 border border-rose-300 rounded-xl text-rose-800 font-semibold flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-rose-600" />
+                  <span>{editError}</span>
+                </div>
+              )}
+
+              {/* Candidate Identifiers */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                    Registration Number
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.regNumber}
+                    onChange={(e) => setEditForm({ ...editForm, regNumber: e.target.value })}
+                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg font-mono font-bold bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                    Practice ID
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.practiceId}
+                    onChange={(e) => setEditForm({ ...editForm, practiceId: e.target.value })}
+                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg font-mono font-bold bg-white text-[#006633]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                    Virtual Seat Number
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.seatNumber}
+                    onChange={(e) => setEditForm({ ...editForm, seatNumber: e.target.value })}
+                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg font-bold bg-white"
+                  />
+                </div>
+              </div>
+
+              {/* Bio-data Fields */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
+                    Full Candidate Name:
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.name}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg font-bold uppercase bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
+                    Registered Email:
+                  </label>
+                  <input
+                    type="email"
+                    value={editForm.email}
+                    onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
+                    Telephone Contact:
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.phone}
+                    onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono bg-white"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
+                      Gender:
+                    </label>
+                    <select
+                      value={editForm.gender}
+                      onChange={(e) => setEditForm({ ...editForm, gender: e.target.value })}
+                      className="w-full px-2.5 py-2 border border-slate-300 rounded-lg font-bold bg-white"
+                    >
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
+                      Date of Birth:
+                    </label>
+                    <input
+                      type="date"
+                      value={editForm.dob}
+                      onChange={(e) => setEditForm({ ...editForm, dob: e.target.value })}
+                      className="w-full px-2.5 py-2 border border-slate-300 rounded-lg bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
+                    State of Origin:
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.stateOfOrigin}
+                    onChange={(e) => setEditForm({ ...editForm, stateOfOrigin: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
+                    Local Government (LGA):
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.lga}
+                    onChange={(e) => setEditForm({ ...editForm, lga: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
+                  />
+                </div>
+              </div>
+
+              {/* Status and Sanction Controls */}
+              <div className="p-3 bg-amber-50/60 border border-amber-200 rounded-xl space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
+                      Candidate Approval Status:
+                    </label>
+                    <select
+                      value={editForm.status}
+                      onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                      className="w-full px-2.5 py-2 border border-slate-300 rounded-lg font-bold bg-white"
+                    >
+                      <option value="Approved">Approved (Full License Access)</option>
+                      <option value="Pending">Pending (Clearance Fee Due)</option>
+                      <option value="Disapproved">Disapproved (Biometrics / Review)</option>
+                      <option value="Suspended">Suspended (Malpractice Hold)</option>
+                      <option value="Banned">Banned (Permanent Restriction)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
+                      Reset Password (Optional):
+                    </label>
+                    <input
+                      type="text"
+                      value={editForm.newPassword}
+                      onChange={(e) => setEditForm({ ...editForm, newPassword: e.target.value })}
+                      placeholder="Leave blank to keep existing password"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono bg-white"
+                    />
+                  </div>
+                </div>
+
+                {editForm.status === 'Disapproved' && (
+                  <div>
+                    <label className="block text-[10px] font-bold text-rose-800 uppercase mb-1">
+                      Disapproval / Biometric Rejection Reason:
+                    </label>
+                    <input
+                      type="text"
+                      value={editForm.disapprovalReason}
+                      onChange={(e) => setEditForm({ ...editForm, disapprovalReason: e.target.value })}
+                      placeholder="e.g. Passport photograph blurred or invalid dimensions"
+                      className="w-full px-3 py-2 border border-rose-300 rounded-lg bg-white text-rose-900"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Academic Choices & 4 Subjects */}
+              <div className="space-y-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
+                      Target Course / Programme:
+                    </label>
+                    <input
+                      type="text"
+                      value={editForm.targetCourse}
+                      onChange={(e) => setEditForm({ ...editForm, targetCourse: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
+                      First Choice Institution:
+                    </label>
+                    <input
+                      type="text"
+                      value={editForm.firstChoiceInst}
+                      onChange={(e) => setEditForm({ ...editForm, firstChoiceInst: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-[10px] font-bold text-slate-700 uppercase">
+                      4 UTME Examination Subjects (English Compulsory):
+                    </label>
+                    <span className="text-[10px] font-mono text-slate-500">
+                      {editForm.selectedSubjects.length} of 4 selected
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                    {AVAILABLE_SUBJECTS.map(subj => {
+                      const isSelected = editForm.selectedSubjects.includes(subj.id);
+                      const isEnglish = subj.id === 'english';
+
+                      return (
+                        <button
+                          key={subj.id}
+                          type="button"
+                          disabled={isEnglish}
+                          onClick={() => {
+                            if (isSelected) {
+                              setEditForm({
+                                ...editForm,
+                                selectedSubjects: editForm.selectedSubjects.filter(s => s !== subj.id)
+                              });
+                            } else {
+                              if (editForm.selectedSubjects.length < 4) {
+                                setEditForm({
+                                  ...editForm,
+                                  selectedSubjects: [...editForm.selectedSubjects, subj.id]
+                                });
+                              }
+                            }
+                          }}
+                          className={`p-2 rounded-lg border text-left text-[11px] font-bold transition-all flex items-center justify-between ${
+                            isSelected
+                              ? 'bg-emerald-50 border-[#006633] text-[#006633]'
+                              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
+                          } ${isEnglish ? 'opacity-80 cursor-not-allowed' : ''}`}
+                        >
+                          <span>{subj.name}</span>
+                          {isSelected && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer Actions */}
+              <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setEditTarget(null)}
+                  className="px-4 py-2 border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-xl font-bold uppercase transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingEdit || editForm.selectedSubjects.length !== 4}
+                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl font-black uppercase tracking-wider shadow transition-all flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  {isSavingEdit ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Saving Changes...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Save Modifications</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>

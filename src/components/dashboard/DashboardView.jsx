@@ -5,6 +5,7 @@ import { ChoicesModal } from '../modals/ChoicesModal';
 import { PaymentModal } from '../modals/PaymentModal';
 import { AppealModal } from '../modals/AppealModal';
 import { LicenseReceiptModal } from '../modals/LicenseReceiptModal';
+import { SupportDeskModal } from '../modals/SupportDeskModal';
 import {
   FileText,
   Award,
@@ -31,7 +32,11 @@ import {
   Info,
   CreditCard,
   Send,
-  X
+  X,
+  Target,
+  Zap,
+  Check,
+  HelpCircle
 } from 'lucide-react';
 
 export const DashboardView = () => {
@@ -56,6 +61,7 @@ export const DashboardView = () => {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isAppealModalOpen, setIsAppealModalOpen] = useState(false);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
   const [paymentTargetName, setPaymentTargetName] = useState('all portal services');
   const [mobileActiveMode, setMobileActiveMode] = useState('simulation_standard');
   const [noticeModal, setNoticeModal] = useState(null); // { title, message, actionLabel }
@@ -209,6 +215,16 @@ export const DashboardView = () => {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={() => setIsSupportModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-lg text-xs font-black uppercase transition-all shadow-sm"
+              title="Help Desk & Candidate Assistance"
+            >
+              <HelpCircle className="w-3.5 h-3.5 text-slate-900" />
+              <span>Help Desk</span>
+            </button>
+
             <div className="hidden sm:flex flex-col text-right">
               <span className="text-xs font-bold uppercase">{currentUser.name}</span>
               <span className="text-[10px] text-emerald-200 font-mono">
@@ -331,7 +347,10 @@ export const DashboardView = () => {
                   <span>Update Passport Photo</span>
                 </button>
                 {photoSuccess && (
-                  <span className="text-[11px] text-emerald-700 font-bold">✓ Photo updated successfully!</span>
+                  <span className="text-[11px] text-emerald-700 font-bold inline-flex items-center gap-1">
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Photo updated successfully!</span>
+                  </span>
                 )}
                 {photoError && (
                   <span className="text-[11px] text-rose-600 font-bold">{photoError}</span>
@@ -562,46 +581,50 @@ export const DashboardView = () => {
             <button
               type="button"
               onClick={() => setMobileActiveMode('simulation_standard')}
-              className={`flex-1 py-1.5 px-2.5 rounded-lg text-[11px] font-black uppercase transition-all whitespace-nowrap text-center ${
+              className={`flex-1 py-1.5 px-2.5 rounded-lg text-[11px] font-black uppercase transition-all whitespace-nowrap text-center flex items-center justify-center gap-1 ${
                 mobileActiveMode === 'simulation_standard'
                   ? 'bg-amber-400 text-slate-950 shadow-md'
                   : 'text-emerald-100 hover:text-white'
               }`}
             >
-              🎯 Full Mock
+              <Target className="w-3.5 h-3.5" />
+              <span>Full Mock</span>
             </button>
             <button
               type="button"
               onClick={() => setMobileActiveMode('practice_standard')}
-              className={`flex-1 py-1.5 px-2.5 rounded-lg text-[11px] font-black uppercase transition-all whitespace-nowrap text-center ${
+              className={`flex-1 py-1.5 px-2.5 rounded-lg text-[11px] font-black uppercase transition-all whitespace-nowrap text-center flex items-center justify-center gap-1 ${
                 mobileActiveMode === 'practice_standard'
                   ? 'bg-blue-600 text-white shadow-md'
                   : 'text-emerald-100 hover:text-white'
               }`}
             >
-              📖 Practice
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>Practice</span>
             </button>
             <button
               type="button"
               onClick={() => setMobileActiveMode('simulation_quick')}
-              className={`flex-1 py-1.5 px-2.5 rounded-lg text-[11px] font-black uppercase transition-all whitespace-nowrap text-center ${
+              className={`flex-1 py-1.5 px-2.5 rounded-lg text-[11px] font-black uppercase transition-all whitespace-nowrap text-center flex items-center justify-center gap-1 ${
                 mobileActiveMode === 'simulation_quick'
                   ? 'bg-emerald-600 text-white shadow-md'
                   : 'text-emerald-100 hover:text-white'
               }`}
             >
-              ⏱️ Quick Test
+              <Clock className="w-3.5 h-3.5" />
+              <span>Quick Test</span>
             </button>
             <button
               type="button"
               onClick={() => setMobileActiveMode('practice_quick')}
-              className={`flex-1 py-1.5 px-2.5 rounded-lg text-[11px] font-black uppercase transition-all whitespace-nowrap text-center ${
+              className={`flex-1 py-1.5 px-2.5 rounded-lg text-[11px] font-black uppercase transition-all whitespace-nowrap text-center flex items-center justify-center gap-1 ${
                 mobileActiveMode === 'practice_quick'
                   ? 'bg-purple-600 text-white shadow-md'
                   : 'text-emerald-100 hover:text-white'
               }`}
             >
-              💡 Drill
+              <Zap className="w-3.5 h-3.5" />
+              <span>Drill</span>
             </button>
           </div>
 
@@ -622,7 +645,8 @@ export const DashboardView = () => {
                 </div>
                 <div>
                   <h3 className="text-base font-black uppercase text-[#006633] flex items-center gap-1.5">
-                    <span>🎯 Full Mock Exam</span>
+                    <Target className="w-4 h-4 text-amber-500" />
+                    <span>Full Mock Exam</span>
                   </h3>
                   <div className="text-[11px] font-mono font-bold text-slate-500">
                     180 Questions • 120 Mins
@@ -683,7 +707,8 @@ export const DashboardView = () => {
                 </div>
                 <div>
                   <h3 className="text-base font-black uppercase text-blue-800 flex items-center gap-1.5">
-                    <span>📖 Full Practice</span>
+                    <BookOpen className="w-4 h-4 text-blue-600" />
+                    <span>Full Practice</span>
                   </h3>
                   <div className="text-[11px] font-mono font-bold text-slate-500">
                     180 Questions • Self-Paced
@@ -749,7 +774,8 @@ export const DashboardView = () => {
                 </div>
                 <div>
                   <h3 className="text-base font-black uppercase text-slate-900 flex items-center gap-1.5">
-                    <span>⏱️ Quick Sprint Test</span>
+                    <Clock className="w-4 h-4 text-emerald-600" />
+                    <span>Quick Sprint Test</span>
                   </h3>
                   <div className="text-[11px] font-mono font-bold text-slate-500">
                     45 Questions • 45 Mins
@@ -815,7 +841,8 @@ export const DashboardView = () => {
                 </div>
                 <div>
                   <h3 className="text-base font-black uppercase text-purple-900 flex items-center gap-1.5">
-                    <span>💡 Quick Practice Drill</span>
+                    <Zap className="w-4 h-4 text-purple-600" />
+                    <span>Quick Practice Drill</span>
                   </h3>
                   <div className="text-[11px] font-mono font-bold text-slate-500">
                     45 Questions • Instant Explanations
@@ -1143,6 +1170,12 @@ export const DashboardView = () => {
       <LicenseReceiptModal
         isOpen={isReceiptModalOpen}
         onClose={() => setIsReceiptModalOpen(false)}
+      />
+
+      {/* Candidate Help Desk & Inquiries Modal */}
+      <SupportDeskModal
+        isOpen={isSupportModalOpen}
+        onClose={() => setIsSupportModalOpen(false)}
       />
     </div>
   );

@@ -71,7 +71,7 @@ export const RegistrationSlipView = () => {
             {/* Biometric Thumbprint stamp */}
             <div className="w-24 h-16 border border-dashed border-slate-400 rounded flex flex-col items-center justify-center text-[9px] text-slate-500 bg-slate-50">
               <span className="font-bold text-emerald-800">THUMBPRINT</span>
-              <span>VERIFIED ✓</span>
+              <span className="font-semibold text-emerald-700">VERIFIED</span>
             </div>
           </div>
 
