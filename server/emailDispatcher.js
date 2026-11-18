@@ -131,6 +131,89 @@ export function buildWelcomeEmailHtml(candidate) {
   `;
 }
 
+export function buildPaymentReceiptEmailHtml({ candidate, amountNaira = 50, reference, paymentDate, isReactivation = false }) {
+  const formattedDate = paymentDate ? new Date(paymentDate).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' }) : new Date().toLocaleString('en-NG');
+  const itemName = isReactivation ? 'CBT Practice Re-Activation License (50% Relief Concession)' : 'Full CBT Simulation Access License';
+
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 540px; padding: 24px; border: 1px solid #006633; border-radius: 12px; margin: auto; background-color: #fafafa;">
+      <div style="background: #004d25; color: white; padding: 20px; text-align: center; border-radius: 8px; border-bottom: 4px solid #ffc107;">
+        <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; color: #ffc107;">Independent UTME CBT Simulator</div>
+        <h2 style="margin: 6px 0 0; font-size: 20px; text-transform: uppercase;">Payment Receipt &amp; License Confirmation</h2>
+        <p style="margin: 4px 0 0; font-size: 12px; color: #a7f3d0;">Official Practice License Key Activated</p>
+      </div>
+
+      <div style="padding: 20px; background-color: white; border-radius: 8px; margin-top: 15px; border: 1px solid #e0e0e0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 12px;">
+          <div>
+            <span style="font-size: 11px; color: #666; text-transform: uppercase;">Receipt Status:</span><br/>
+            <strong style="color: #006633; font-size: 13px;">✓ PAYMENT VERIFIED &amp; UNLOCKED</strong>
+          </div>
+          <div style="text-align: right;">
+            <span style="font-size: 11px; color: #666; text-transform: uppercase;">Amount Paid:</span><br/>
+            <strong style="color: #006633; font-size: 18px;">₦${amountNaira}.00</strong>
+          </div>
+        </div>
+
+        <p style="margin: 0 0 12px; font-size: 14px; color: #333;">
+          Dear <strong>${candidate.name || 'Candidate'}</strong>,
+        </p>
+        <p style="margin: 0 0 15px; font-size: 13px; color: #555; line-height: 1.5;">
+          Thank you for activating your examination practice license. Your transaction was verified successfully via Paystack and your candidate profile now has full, unrestricted access to all mock tests and scoring analytics.
+        </p>
+
+        <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 14px; margin: 15px 0;">
+          <table style="width: 100%; font-size: 12px; color: #333; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 5px 0; color: #64748b;">License Item:</td>
+              <td style="padding: 5px 0; font-weight: bold; color: #0f172a;">${itemName}</td>
+            </tr>
+            <tr>
+              <td style="padding: 5px 0; color: #64748b;">Candidate Practice ID:</td>
+              <td style="padding: 5px 0; font-weight: bold; font-family: monospace; color: #006633;">${candidate.practiceId || 'SIM-2026-7841'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 5px 0; color: #64748b;">Registration Number:</td>
+              <td style="padding: 5px 0; font-weight: bold; font-family: monospace;">${candidate.regNumber}</td>
+            </tr>
+            <tr>
+              <td style="padding: 5px 0; color: #64748b;">Paystack Reference:</td>
+              <td style="padding: 5px 0; font-family: monospace; font-size: 11px; color: #334155;">${reference}</td>
+            </tr>
+            <tr>
+              <td style="padding: 5px 0; color: #64748b;">Transaction Date:</td>
+              <td style="padding: 5px 0;">${formattedDate}</td>
+            </tr>
+            <tr>
+              <td style="padding: 5px 0; color: #64748b;">Payment Method:</td>
+              <td style="padding: 5px 0; font-weight: bold;">Secured Paystack Checkout</td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="margin: 15px 0; padding: 12px; background-color: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0;">
+          <strong style="color: #166534; font-size: 12px; display: block; margin-bottom: 6px;">Services Unlocked on Your Portal:</strong>
+          <ul style="margin: 0; padding-left: 18px; font-size: 12px; color: #15803d; line-height: 1.6;">
+            <li>Unlimited Full 180-Question Timed Mock CBT Simulations</li>
+            <li>Subject Drills &amp; Step-by-Step Question Solutions</li>
+            <li>Central Administrative Score Diagnostics &amp; Rank Reporting</li>
+            <li>Simulated Central Admission Processing System (CAPS)</li>
+          </ul>
+        </div>
+
+        <p style="margin: 15px 0 0; font-size: 12px; color: #666; line-height: 1.4;">
+          You can log in to your dashboard anytime using your registered email or Practice ID. Please retain this email for your administrative records.
+        </p>
+      </div>
+
+      <div style="text-align: center; margin-top: 16px; font-size: 11px; color: #888; line-height: 1.4;">
+        Independent UTME CBT Simulator • Transaction &amp; License Record<br/>
+        This platform is an independent study tool and is not affiliated with the Joint Admissions and Matriculation Board (JAMB).
+      </div>
+    </div>
+  `;
+}
+
 export async function dispatchEmail({
   to,
   candidateName = 'Candidate',
@@ -363,6 +446,26 @@ export async function dispatchWelcomeEmail(candidate, env = {}) {
     env
   }).catch(err => {
     console.warn('Welcome email dispatch warning:', err.message);
+    return { success: false, error: err.message };
+  });
+}
+
+export async function dispatchPaymentReceiptEmail({ candidate, amountNaira = 50, reference, paymentDate, isReactivation = false, env = {} }) {
+  const cleanTo = (candidate?.email || '').trim().toLowerCase();
+  if (!cleanTo || !cleanTo.includes('@')) {
+    return { success: false, error: 'Candidate email address is invalid.' };
+  }
+
+  const subject = `Payment Receipt: CBT Simulation Access License - ₦${amountNaira}.00 (${reference})`;
+  const html = buildPaymentReceiptEmailHtml({ candidate, amountNaira, reference, paymentDate, isReactivation });
+
+  return dispatchEmail({
+    to: cleanTo,
+    candidateName: candidate.name,
+    subject,
+    env
+  }).catch(err => {
+    console.warn('Payment receipt email dispatch note:', err.message);
     return { success: false, error: err.message };
   });
 }

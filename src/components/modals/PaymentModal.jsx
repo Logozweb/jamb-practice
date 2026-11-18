@@ -60,7 +60,7 @@ export const PaymentModal = ({ isOpen, onClose, targetActionName = 'this feature
             verifyPaymentWithServer(response.reference, currentUser.id).then(function (verified) {
               setVerifying(false);
               if (verified && verified.success) {
-                setSuccessNotice('Payment successful! Your account is approved and all services are unlocked.');
+                setSuccessNotice('License activated successfully! Your CBT simulation access is unlocked and a receipt has been sent to your email.');
                 if (verified.candidate) {
                   updateCurrentUser(verified.candidate);
                 } else {
@@ -97,7 +97,7 @@ export const PaymentModal = ({ isOpen, onClose, targetActionName = 'this feature
       setLoading(false);
 
       if (verified.success) {
-        setSuccessNotice('Test payment simulated! Your account is approved and all services are unlocked.');
+        setSuccessNotice('License activated successfully! Your CBT simulation access is unlocked and a receipt has been sent to your email.');
         if (verified.candidate) {
           updateCurrentUser(verified.candidate);
         } else {

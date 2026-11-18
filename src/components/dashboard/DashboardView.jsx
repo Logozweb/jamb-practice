@@ -4,6 +4,7 @@ import { AVAILABLE_SUBJECTS } from '../../data/subjects';
 import { ChoicesModal } from '../modals/ChoicesModal';
 import { PaymentModal } from '../modals/PaymentModal';
 import { AppealModal } from '../modals/AppealModal';
+import { LicenseReceiptModal } from '../modals/LicenseReceiptModal';
 import {
   FileText,
   Award,
@@ -54,6 +55,7 @@ export const DashboardView = () => {
   const [isChoicesModalOpen, setIsChoicesModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isAppealModalOpen, setIsAppealModalOpen] = useState(false);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [paymentTargetName, setPaymentTargetName] = useState('all portal services');
   const [mobileActiveMode, setMobileActiveMode] = useState('simulation_standard');
   const [noticeModal, setNoticeModal] = useState(null); // { title, message, actionLabel }
@@ -485,6 +487,35 @@ export const DashboardView = () => {
               <Upload className="w-4 h-4" />
               <span>Update Passport Photo</span>
               <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        ) : status === 'Approved' ? (
+          <div className="bg-emerald-50/90 border-2 border-emerald-500 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in">
+            <div className="flex items-start sm:items-center gap-3.5">
+              <div className="w-11 h-11 rounded-xl bg-[#006633] text-white flex items-center justify-center flex-shrink-0 shadow-md">
+                <ShieldCheck className="w-6 h-6 text-amber-300" />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-sm sm:text-base font-black text-slate-900 uppercase">
+                    CBT Practice Access License: Active &amp; Verified
+                  </h2>
+                  <span className="px-2.5 py-0.5 rounded-full bg-[#006633] text-white text-[10px] font-black uppercase tracking-wider">
+                    Full Simulation Access
+                  </span>
+                </div>
+                <p className="text-xs text-slate-700 mt-1 max-w-xl leading-relaxed">
+                  Your candidate practice license is active. Unlimited 180-question mock exams, CAPS admission processing, and score analytics are fully unlocked.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsReceiptModalOpen(true)}
+              className="w-full sm:w-auto px-4 py-2.5 bg-white hover:bg-slate-50 text-[#006633] border-2 border-[#006633] rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 flex-shrink-0 cursor-pointer"
+            >
+              <CreditCard className="w-4 h-4 text-[#006633]" />
+              <span>View License Receipt</span>
             </button>
           </div>
         ) : null}
@@ -1106,6 +1137,12 @@ export const DashboardView = () => {
       <AppealModal
         isOpen={isAppealModalOpen}
         onClose={() => setIsAppealModalOpen(false)}
+      />
+
+      {/* CBT Access License Electronic Receipt Modal */}
+      <LicenseReceiptModal
+        isOpen={isReceiptModalOpen}
+        onClose={() => setIsReceiptModalOpen(false)}
       />
     </div>
   );

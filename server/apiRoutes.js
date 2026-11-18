@@ -1,5 +1,5 @@
 import * as db from './database.js';
-import { dispatchEmail, dispatchWelcomeEmail } from './emailDispatcher.js';
+import { dispatchEmail, dispatchWelcomeEmail, dispatchPaymentReceiptEmail } from './emailDispatcher.js';
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -377,6 +377,21 @@ export function databaseApiPlugin(env = {}) {
             if (paymentSuccess) {
               db.recordPayment(paymentDetails);
               const updatedCandidate = db.approveCandidateByPayment(candidateId, cleanRef, paymentDetails.paidAt);
+
+              // Trigger automated payment receipt & license activation email
+              if (updatedCandidate && updatedCandidate.email) {
+                dispatchPaymentReceiptEmail({
+                  candidate: updatedCandidate,
+                  amountNaira: Math.round(paymentDetails.amountKobo / 100),
+                  reference: cleanRef,
+                  paymentDate: paymentDetails.paidAt,
+                  isReactivation,
+                  env
+                }).catch(err => {
+                  console.warn('Receipt email dispatch note:', err.message);
+                });
+              }
+
               return sendJson(res, 200, {
                 success: true,
                 message: 'Payment verified successfully! Your account has been approved and all features are unlocked.',
