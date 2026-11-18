@@ -306,7 +306,10 @@ export const ExamProvider = ({ children }) => {
       questionCountMode: 'standard',
       apiSource: 'offline',
       allowStudentPracticeMode: true,
-      requireApprovalToSit: false
+      requireApprovalToSit: false,
+      supportWhatsapp: '+2348000000000',
+      supportEmail: 'hello@pauladisa.com',
+      supportHours: 'Monday – Saturday: 8:00 AM – 8:00 PM (WAT)'
     };
   });
 

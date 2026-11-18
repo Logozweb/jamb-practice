@@ -3118,13 +3118,80 @@ export const AdminDashboard = () => {
               </div>
             </div>
 
+            {/* Support Desk & Candidate Direct Hotlines Configuration */}
+            <div className="pt-6 border-t border-slate-300 space-y-4">
+              <div>
+                <h3 className="text-sm font-black uppercase text-slate-900 tracking-wider flex items-center gap-2">
+                  <Phone className="w-4 h-4 text-[#006633]" />
+                  <span>Candidate Support Desk & Direct Hotlines</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Configure the official WhatsApp hotline, support email, and operational hours displayed in the candidate Help Desk modal.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* WhatsApp Support Number */}
+                <div className="p-4 bg-slate-50 border border-slate-300 rounded-xl space-y-2">
+                  <label className="text-xs font-bold uppercase text-slate-800 flex items-center justify-between">
+                    <span>Official WhatsApp Support Number</span>
+                    <span className="text-[10px] text-emerald-800 font-mono font-bold">Fastest Response</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={tempSettings.supportWhatsapp ?? '+2348000000000'}
+                    onChange={(e) => setTempSettings({ ...tempSettings, supportWhatsapp: e.target.value })}
+                    placeholder="+234 801 234 5678 or 08012345678"
+                    className="w-full p-2.5 rounded-lg border border-slate-300 font-mono font-bold text-xs bg-white text-slate-800 focus:outline-none focus:border-[#006633]"
+                  />
+                  <p className="text-[11px] text-slate-500">
+                    Supports Nigerian numbers (e.g. <code>080...</code>) or international format (<code>+234...</code>). The candidate's 1-click WhatsApp chat link automatically formats this number and pre-fills their Practice ID.
+                  </p>
+                </div>
+
+                {/* Support Email */}
+                <div className="p-4 bg-slate-50 border border-slate-300 rounded-xl space-y-2">
+                  <label className="text-xs font-bold uppercase text-slate-800 block">
+                    Official Support Inquiries Email
+                  </label>
+                  <input
+                    type="email"
+                    value={tempSettings.supportEmail ?? 'hello@pauladisa.com'}
+                    onChange={(e) => setTempSettings({ ...tempSettings, supportEmail: e.target.value })}
+                    placeholder="support@example.com"
+                    className="w-full p-2.5 rounded-lg border border-slate-300 font-mono font-bold text-xs bg-white text-slate-800 focus:outline-none focus:border-[#006633]"
+                  />
+                  <p className="text-[11px] text-slate-500">
+                    Direct email inbox where candidates can send formal escalation queries and records.
+                  </p>
+                </div>
+
+                {/* Operating Hours */}
+                <div className="p-4 bg-slate-50 border border-slate-300 rounded-xl space-y-2 md:col-span-2">
+                  <label className="text-xs font-bold uppercase text-slate-800 block">
+                    Operational Support Hours
+                  </label>
+                  <input
+                    type="text"
+                    value={tempSettings.supportHours ?? 'Monday – Saturday: 8:00 AM – 8:00 PM (WAT)'}
+                    onChange={(e) => setTempSettings({ ...tempSettings, supportHours: e.target.value })}
+                    placeholder="Monday – Saturday: 8:00 AM – 8:00 PM (WAT)"
+                    className="w-full p-2.5 rounded-lg border border-slate-300 font-bold text-xs bg-white text-slate-800 focus:outline-none focus:border-[#006633]"
+                  />
+                  <p className="text-[11px] text-slate-500">
+                    Displayed at the footer of the candidate support modal to set response time expectations.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div className="flex justify-end pt-3">
               <button
                 type="button"
                 onClick={handleSaveSettings}
                 className="px-6 py-2.5 bg-[#006633] hover:bg-[#00552b] text-white font-black text-xs uppercase tracking-wider rounded-lg shadow transition-all"
               >
-                Save Exam Rules
+                Save Platform Rules & Hotline Settings
               </button>
             </div>
 

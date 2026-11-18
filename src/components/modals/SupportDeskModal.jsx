@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 
 export const SupportDeskModal = ({ isOpen, onClose }) => {
-  const { currentUser } = useExam();
+  const { currentUser, examSettings } = useExam();
   const [activeTab, setActiveTab] = useState('new'); // 'new' | 'history' | 'direct'
   const [category, setCategory] = useState('payment');
   const [subject, setSubject] = useState('');
@@ -94,6 +94,16 @@ export const SupportDeskModal = ({ isOpen, onClose }) => {
   const whatsappMessage = encodeURIComponent(
     `Hello Support Desk, I am candidate ${currentUser.name} (Practice ID: ${currentUser.practiceId || currentUser.regNumber}). I need assistance regarding: `
   );
+
+  const rawPhone = examSettings?.supportWhatsapp || '+2348000000000';
+  let digits = rawPhone.replace(/\D/g, '');
+  if (digits.startsWith('0') && digits.length === 11) {
+    digits = '234' + digits.slice(1);
+  }
+  const cleanPhone = digits || '2348000000000';
+  const whatsappUrl = `https://wa.me/${cleanPhone}?text=${whatsappMessage}`;
+  const supportEmail = examSettings?.supportEmail || 'hello@pauladisa.com';
+  const supportHours = examSettings?.supportHours || 'Monday – Saturday: 8:00 AM – 8:00 PM (WAT)';
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
@@ -527,7 +537,7 @@ export const SupportDeskModal = ({ isOpen, onClose }) => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                 {/* WhatsApp Channel */}
                 <a
-                  href={`https://wa.me/2348000000000?text=${whatsappMessage}`}
+                  href={whatsappUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-4 rounded-xl border border-slate-200 bg-white hover:border-[#006633] hover:shadow-md transition-all space-y-2 group"
@@ -542,7 +552,7 @@ export const SupportDeskModal = ({ isOpen, onClose }) => {
                     WhatsApp Desk Chat
                   </div>
                   <p className="text-xs text-slate-500">
-                    Direct instant chat with an active CBT support agent with pre-filled candidate identification.
+                    Direct instant chat with an active CBT support agent ({rawPhone}).
                   </p>
                   <div className="text-xs font-bold text-[#006633] pt-1">
                     Open WhatsApp Chat &rarr;
@@ -551,7 +561,7 @@ export const SupportDeskModal = ({ isOpen, onClose }) => {
 
                 {/* Email Channel */}
                 <a
-                  href={`mailto:hello@pauladisa.com?subject=Candidate%20Support%20Inquiry%20-%20${encodeURIComponent(currentUser.practiceId || currentUser.regNumber)}`}
+                  href={`mailto:${supportEmail}?subject=Candidate%20Support%20Inquiry%20-%20${encodeURIComponent(currentUser.practiceId || currentUser.regNumber)}`}
                   className="p-4 rounded-xl border border-slate-200 bg-white hover:border-[#006633] hover:shadow-md transition-all space-y-2 group"
                 >
                   <div className="flex items-center justify-between">
@@ -564,7 +574,7 @@ export const SupportDeskModal = ({ isOpen, onClose }) => {
                     Official Support Email
                   </div>
                   <p className="text-xs text-slate-500">
-                    Transmits directly to central administration at <code className="font-mono text-slate-700">hello@pauladisa.com</code>.
+                    Transmits directly to central administration at <code className="font-mono text-slate-700">{supportEmail}</code>.
                   </p>
                   <div className="text-xs font-bold text-blue-700 pt-1">
                     Compose Support Email &rarr;
@@ -574,7 +584,7 @@ export const SupportDeskModal = ({ isOpen, onClose }) => {
 
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 space-y-1">
                 <div className="font-bold text-slate-800">Operational Hours:</div>
-                <p>Monday – Saturday: 8:00 AM – 8:00 PM (WAT). Inquiries submitted outside these hours are answered first thing the following morning.</p>
+                <p>{supportHours}</p>
               </div>
             </div>
           )}
