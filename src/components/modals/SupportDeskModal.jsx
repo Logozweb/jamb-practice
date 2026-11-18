@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useExam } from '../../context/ExamContext';
-import { apiGetSupportTickets, apiSubmitSupportTicket } from '../../services/dbService';
+import {
+  apiGetSupportTickets,
+  apiSubmitSupportTicket,
+  apiReplySupportTicket
+} from '../../services/dbService';
 import {
   HelpCircle,
   Send,
@@ -33,6 +37,9 @@ export const SupportDeskModal = ({ isOpen, onClose }) => {
 
   const [myTickets, setMyTickets] = useState([]);
   const [isLoadingTickets, setIsLoadingTickets] = useState(false);
+  const [candidateReplies, setCandidateReplies] = useState({});
+  const [replySubmitting, setReplySubmitting] = useState({});
+  const [replyError, setReplyError] = useState({});
 
   useEffect(() => {
     if (isOpen && currentUser?.id) {
@@ -50,6 +57,32 @@ export const SupportDeskModal = ({ isOpen, onClose }) => {
       console.warn('Failed to load candidate support tickets:', e);
     } finally {
       setIsLoadingTickets(false);
+    }
+  };
+
+  const handleCandidateReply = async (ticketId) => {
+    const text = (candidateReplies[ticketId] || '').trim();
+    if (!text) return;
+    setReplySubmitting(prev => ({ ...prev, [ticketId]: true }));
+    setReplyError(prev => ({ ...prev, [ticketId]: '' }));
+    try {
+      const res = await apiReplySupportTicket({
+        ticketId,
+        candidateId: currentUser.id,
+        reply: text,
+        sender: 'candidate',
+        senderName: currentUser.name
+      });
+      if (res && res.success) {
+        setCandidateReplies(prev => ({ ...prev, [ticketId]: '' }));
+        await loadTickets();
+      } else {
+        setReplyError(prev => ({ ...prev, [ticketId]: res?.error || 'Failed to send response.' }));
+      }
+    } catch (err) {
+      setReplyError(prev => ({ ...prev, [ticketId]: 'Network error communicating with the support desk.' }));
+    } finally {
+      setReplySubmitting(prev => ({ ...prev, [ticketId]: false }));
     }
   };
 
@@ -483,35 +516,117 @@ export const SupportDeskModal = ({ isOpen, onClose }) => {
                         </div>
                       </div>
 
-                      {/* Original Question */}
-                      <div className="text-xs text-slate-700 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-200">
-                        <div className="text-[10px] font-bold text-slate-500 uppercase mb-1">Your Submission:</div>
-                        <p className="whitespace-pre-wrap">{t.message}</p>
-                        <div className="text-[10px] text-slate-400 mt-1 font-mono">
-                          Logged: {new Date(t.createdAt).toLocaleString()}
+                      {/* Conversation History Thread */}
+                      <div className="space-y-2 pt-1">
+                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                          <span>Conversation Thread:</span>
+                          <span className="font-mono text-[9px] text-slate-400">
+                            {(t.messages && t.messages.length > 0) ? t.messages.length : (t.adminReply ? 2 : 1)} Message(s)
+                          </span>
+                        </div>
+
+                        <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                          {((t.messages && t.messages.length > 0) ? t.messages : [
+                            {
+                              id: 'init',
+                              sender: 'candidate',
+                              senderName: t.candidateName || 'You',
+                              message: t.message,
+                              createdAt: t.createdAt
+                            },
+                            ...(t.adminReply ? [{
+                              id: 'admin_init',
+                              sender: 'admin',
+                              senderName: t.adminRepliedBy || 'Support Desk Officer',
+                              message: t.adminReply,
+                              createdAt: t.resolvedAt || t.createdAt
+                            }] : [])
+                          ]).map((m, idx) => (
+                            <div
+                              key={m.id || idx}
+                              className={`p-3 rounded-xl text-xs space-y-1 ${
+                                m.sender === 'admin'
+                                  ? 'bg-emerald-50 border border-emerald-300 ml-2 sm:ml-4'
+                                  : 'bg-slate-50 border border-slate-200 mr-2 sm:mr-4'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between text-[10px] font-bold">
+                                <span className={`flex items-center gap-1 ${m.sender === 'admin' ? 'text-emerald-900 font-black' : 'text-slate-700'}`}>
+                                  {m.sender === 'admin' ? (
+                                    <>
+                                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-700 flex-shrink-0" />
+                                      <span>{m.senderName || 'Support Desk Officer'} (Admin)</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <User className="w-3 h-3 text-slate-500 flex-shrink-0" />
+                                      <span>{m.senderName || 'You'} (Candidate)</span>
+                                    </>
+                                  )}
+                                </span>
+                                <span className="text-slate-400 font-mono text-[9px]">
+                                  {m.createdAt ? new Date(m.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
+                                </span>
+                              </div>
+                              <p className="whitespace-pre-wrap text-slate-800 leading-relaxed pl-2 border-l-2 border-slate-300 font-medium text-[11px]">
+                                {m.message}
+                              </p>
+                            </div>
+                          ))}
                         </div>
                       </div>
 
-                      {/* Admin Reply */}
-                      {t.adminReply ? (
-                        <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-lg text-xs space-y-1.5">
-                          <div className="flex items-center justify-between text-[10px] font-black uppercase text-emerald-900">
-                            <span className="flex items-center gap-1">
-                              <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
-                              <span>Administrator Resolution ({t.adminRepliedBy || 'Desk Officer'}):</span>
-                            </span>
-                            <span className="font-mono text-emerald-700 font-normal">
-                              {t.resolvedAt ? new Date(t.resolvedAt).toLocaleString() : 'Recent'}
-                            </span>
-                          </div>
-                          <div className="text-emerald-950 font-medium leading-relaxed whitespace-pre-wrap pl-4 border-l-2 border-emerald-600">
-                            {t.adminReply}
+                      {/* Reply Box or Resolved Notice */}
+                      {t.status === 'resolved' ? (
+                        <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-xs text-emerald-900 flex items-start gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-700 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <div className="font-black uppercase text-[10px] tracking-wide">
+                              Inquiry Resolved &amp; Closed
+                            </div>
+                            <div className="text-[11px] text-emerald-800 mt-0.5">
+                              This support ticket has been officially marked as resolved by administration. Further responses are locked. If you need assistance with another matter, please submit a new inquiry.
+                            </div>
                           </div>
                         </div>
                       ) : (
-                        <div className="text-[11px] text-amber-800 bg-amber-50 p-2 rounded-lg border border-amber-200 font-medium flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
-                          <span>Inquiry is currently in queue. You will receive an email resolution as soon as processed.</span>
+                        <div className="pt-2 border-t border-slate-100 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                              <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
+                              <span>Respond to Support Desk:</span>
+                            </label>
+                            <span className="text-[10px] text-slate-400 font-medium">Ticket remains open for replies</span>
+                          </div>
+
+                          {replyError[t.id] && (
+                            <div className="text-[11px] text-rose-700 bg-rose-50 p-2 rounded border border-rose-300">
+                              {replyError[t.id]}
+                            </div>
+                          )}
+
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-2">
+                            <textarea
+                              rows={2}
+                              value={candidateReplies[t.id] || ''}
+                              onChange={(e) => setCandidateReplies(prev => ({ ...prev, [t.id]: e.target.value }))}
+                              placeholder="Type your follow-up reply or question for the support desk officer..."
+                              className="flex-1 p-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500/20 bg-white"
+                            />
+                            <button
+                              type="button"
+                              disabled={replySubmitting[t.id] || !(candidateReplies[t.id] || '').trim()}
+                              onClick={() => handleCandidateReply(t.id)}
+                              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold uppercase transition-all shadow disabled:opacity-40 flex items-center justify-center gap-1.5 self-end w-full sm:w-auto"
+                            >
+                              {replySubmitting[t.id] ? (
+                                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <Send className="w-3.5 h-3.5" />
+                              )}
+                              <span>Send Reply</span>
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>

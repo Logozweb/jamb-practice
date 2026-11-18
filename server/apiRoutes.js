@@ -528,6 +528,27 @@ export function databaseApiPlugin(env = {}) {
             return sendJson(res, 200, { success: true, ticket });
           }
 
+          if (pathname === '/api/support/tickets/reply' && method === 'POST') {
+            const body = await readBody(req);
+            const { ticketId, candidateId, reply, sender, senderName } = body;
+            if (!ticketId || !reply?.trim()) {
+              return sendJson(res, 400, { success: false, error: 'Ticket ID and reply text are required.' });
+            }
+
+            const result = db.replyToSupportTicket(ticketId, {
+              sender: sender || 'candidate',
+              senderName: senderName?.trim(),
+              message: reply.trim(),
+              candidateId: candidateId || null
+            });
+
+            if (!result.success) {
+              return sendJson(res, 400, result);
+            }
+
+            return sendJson(res, 200, result);
+          }
+
           // -------------------------------------------------------------
           // Database-Backed OTP Generation & Dispatch (Rate-Limited)
           // -------------------------------------------------------------

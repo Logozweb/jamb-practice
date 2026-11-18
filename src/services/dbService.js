@@ -312,3 +312,16 @@ export async function apiResolveSupportTicket({ ticketId, adminReply, status = '
     return { success: false, error: 'Failed communicating resolution to server.' };
   }
 }
+
+export async function apiReplySupportTicket({ ticketId, candidateId, reply, sender = 'candidate', senderName }) {
+  try {
+    const res = await fetch('/api/support/tickets/reply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticketId, candidateId, reply, sender, senderName })
+    });
+    return await res.json();
+  } catch (err) {
+    return { success: false, error: 'Failed transmitting response to support desk.' };
+  }
+}

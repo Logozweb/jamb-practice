@@ -58,6 +58,8 @@ import {
   ShieldAlert,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   CreditCard,
   FileText,
   Edit3,
@@ -161,6 +163,19 @@ export const AdminDashboard = () => {
   const [appealFilter, setAppealFilter] = useState('all'); // 'all' | 'pending' | 'resolved'
   const [appealActionLoading, setAppealActionLoading] = useState(null);
   const [appealAdminNotes, setAppealAdminNotes] = useState({});
+  const [appealPage, setAppealPage] = useState(1);
+  const appealsPerPage = 5;
+  const [expandedAppeals, setExpandedAppeals] = useState({});
+
+  const toggleAppealExpand = (id) => {
+    setExpandedAppeals(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const toggleAllAppeals = (expand) => {
+    const next = {};
+    appeals.forEach(a => { next[a.id] = expand; });
+    setExpandedAppeals(next);
+  };
 
   const loadAppeals = async () => {
     setIsLoadingAppeals(true);
@@ -204,6 +219,19 @@ export const AdminDashboard = () => {
   const [ticketReplyNotes, setTicketReplyNotes] = useState({});
   const [ticketReplyStatus, setTicketReplyStatus] = useState({});
   const [ticketActionLoading, setTicketActionLoading] = useState(null);
+  const [ticketPage, setTicketPage] = useState(1);
+  const ticketsPerPage = 6;
+  const [expandedTickets, setExpandedTickets] = useState({});
+
+  const toggleTicketExpand = (id) => {
+    setExpandedTickets(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const toggleAllTickets = (expand) => {
+    const next = {};
+    supportTickets.forEach(t => { next[t.id] = expand; });
+    setExpandedTickets(next);
+  };
 
   const loadSupportTickets = async () => {
     setIsLoadingTickets(true);
@@ -561,6 +589,23 @@ export const AdminDashboard = () => {
     if (appealFilter === 'resolved') return a.status !== 'pending';
     return true;
   });
+  const totalAppealPages = Math.ceil(filteredAppeals.length / appealsPerPage) || 1;
+  const paginatedAppeals = filteredAppeals.slice((appealPage - 1) * appealsPerPage, appealPage * appealsPerPage);
+
+  const filteredTickets = supportTickets.filter(t => {
+    if (ticketFilter !== 'all' && t.status !== ticketFilter) return false;
+    if (!ticketSearchTerm.trim()) return true;
+    const term = ticketSearchTerm.toLowerCase();
+    return (
+      t.id.toLowerCase().includes(term) ||
+      (t.candidateName || '').toLowerCase().includes(term) ||
+      (t.candidateEmail || '').toLowerCase().includes(term) ||
+      (t.subject || '').toLowerCase().includes(term) ||
+      (t.message || '').toLowerCase().includes(term)
+    );
+  });
+  const totalTicketPages = Math.ceil(filteredTickets.length / ticketsPerPage) || 1;
+  const paginatedTickets = filteredTickets.slice((ticketPage - 1) * ticketsPerPage, ticketPage * ticketsPerPage);
 
   // Combine persistent SQLite database results and local candidate histories (FILTERED TO FULL MOCK EXAMS ONLY)
   const allExamSubmissions = (dbExamResults.length > 0
@@ -1316,7 +1361,10 @@ export const AdminDashboard = () => {
                   <Filter className="w-4 h-4 text-slate-500" />
                   <select
                     value={appealFilter}
-                    onChange={(e) => setAppealFilter(e.target.value)}
+                    onChange={(e) => {
+                      setAppealFilter(e.target.value);
+                      setAppealPage(1);
+                    }}
                     className="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-bold text-slate-700 bg-slate-50"
                   >
                     <option value="all">All Appeals ({appeals.length})</option>
@@ -1325,13 +1373,34 @@ export const AdminDashboard = () => {
                   </select>
                 </div>
 
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => toggleAllAppeals(true)}
+                    className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold border border-slate-300 transition-all flex items-center gap-1 shadow-sm"
+                    title="Expand all appeal details"
+                  >
+                    <ChevronDown className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Expand All</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleAllAppeals(false)}
+                    className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold border border-slate-300 transition-all flex items-center gap-1 shadow-sm"
+                    title="Collapse all appeal details"
+                  >
+                    <ChevronUp className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Collapse All</span>
+                  </button>
+                </div>
+
                 <button
                   type="button"
                   onClick={loadAppeals}
                   className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold border border-slate-300 transition-all flex items-center gap-1.5 shadow-sm"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 text-slate-600 ${isLoadingAppeals ? 'animate-spin' : ''}`} />
-                  <span>Refresh Appeals</span>
+                  <span>Refresh</span>
                 </button>
               </div>
             </div>
@@ -1380,9 +1449,10 @@ export const AdminDashboard = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {filteredAppeals.map(appeal => {
+                {paginatedAppeals.map(appeal => {
                   const isPending = appeal.status === 'pending';
                   const isActionBusy = appealActionLoading === appeal.id;
+                  const isExpanded = expandedAppeals[appeal.id] ?? (appeal.status === 'pending');
 
                   return (
                     <div
@@ -1395,7 +1465,7 @@ export const AdminDashboard = () => {
                           : 'border-slate-200 bg-white'
                       }`}
                     >
-                      {/* Appeal Card Header */}
+                      {/* Appeal Card Header (Clickable Collapse Toggle) */}
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/60">
                         <div className="space-y-0.5">
                           <div className="flex items-center gap-2">
@@ -1411,8 +1481,8 @@ export const AdminDashboard = () => {
                           </div>
                         </div>
 
-                        {/* Status Badge */}
-                        <div className="self-start sm:self-auto">
+                        {/* Status Badge & Collapse Toggle */}
+                        <div className="flex items-center gap-2 self-start sm:self-auto">
                           {isPending ? (
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-black text-xs uppercase bg-amber-100 text-amber-900 border border-amber-300 shadow-sm animate-pulse">
                               <Clock className="w-3.5 h-3.5 text-amber-600" />
@@ -1434,99 +1504,153 @@ export const AdminDashboard = () => {
                               <span>Permanently Banned</span>
                             </span>
                           )}
+
+                          <button
+                            type="button"
+                            onClick={() => toggleAppealExpand(appeal.id)}
+                            className="p-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 text-slate-600 transition-all flex items-center gap-1 text-xs font-bold"
+                            title={isExpanded ? 'Collapse Appeal' : 'Expand Appeal'}
+                          >
+                            {isExpanded ? (
+                              <>
+                                <ChevronUp className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline text-[10px]">Collapse</span>
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline text-[10px]">Details</span>
+                              </>
+                            )}
+                          </button>
                         </div>
                       </div>
 
-                      {/* Candidate Appeal Statement */}
-                      <div className={`p-4 rounded-xl border text-xs leading-relaxed space-y-1.5 ${
-                        appeal.status === 'banned'
-                          ? 'bg-slate-800/80 border-slate-700 text-slate-200'
-                          : 'bg-white border-slate-200 text-slate-800'
-                      }`}>
-                        <div className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                          <FileText className="w-3.5 h-3.5 text-slate-400" />
-                          <span>Candidate Formal Statement of Appeal:</span>
-                        </div>
-                        <p className="italic font-medium pl-5 border-l-2 border-amber-500 whitespace-pre-wrap">
-                          "{appeal.reason}"
-                        </p>
-                      </div>
-
-                      {/* Admin Resolution Section */}
-                      {isPending ? (
-                        <div className="space-y-3 pt-2">
-                          <div>
-                            <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                              Admin Determination Notes (Optional):
-                            </label>
-                            <input
-                              type="text"
-                              value={appealAdminNotes[appeal.id] || ''}
-                              onChange={(e) => setAppealAdminNotes(prev => ({ ...prev, [appeal.id]: e.target.value }))}
-                              placeholder="e.g. Warning issued for screen navigation; candidate agreed to strictly observe fullscreen lock."
-                              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-[#006633]/20 bg-white"
-                            />
+                      {/* Collapsible Body Details */}
+                      {isExpanded && (
+                        <div className="space-y-4 pt-1 animate-in fade-in duration-150">
+                          {/* Candidate Appeal Statement */}
+                          <div className={`p-4 rounded-xl border text-xs leading-relaxed space-y-1.5 ${
+                            appeal.status === 'banned'
+                              ? 'bg-slate-800/80 border-slate-700 text-slate-200'
+                              : 'bg-white border-slate-200 text-slate-800'
+                          }`}>
+                            <div className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                              <FileText className="w-3.5 h-3.5 text-slate-400" />
+                              <span>Candidate Formal Statement of Appeal:</span>
+                            </div>
+                            <p className="italic font-medium pl-5 border-l-2 border-amber-500 whitespace-pre-wrap">
+                              "{appeal.reason}"
+                            </p>
                           </div>
 
-                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2.5 pt-1">
-                            {/* Action 1: Reinstate Profile */}
-                            <button
-                              type="button"
-                              disabled={isActionBusy}
-                              onClick={() => handleResolveAppeal(appeal.id, 'reinstate')}
-                              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50"
-                              title="Reinstate candidate immediately with Approved status. Unlocks all CBT practice."
-                            >
-                              <CheckCircle2 className="w-4 h-4" />
-                              <span>Reinstate Profile (Full Unlock)</span>
-                            </button>
+                          {/* Admin Resolution Section */}
+                          {isPending ? (
+                            <div className="space-y-3 pt-2">
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                                  Admin Determination Notes (Optional):
+                                </label>
+                                <input
+                                  type="text"
+                                  value={appealAdminNotes[appeal.id] || ''}
+                                  onChange={(e) => setAppealAdminNotes(prev => ({ ...prev, [appeal.id]: e.target.value }))}
+                                  placeholder="e.g. Warning issued for screen navigation; candidate agreed to strictly observe fullscreen lock."
+                                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-[#006633]/20 bg-white"
+                                />
+                              </div>
 
-                            {/* Action 2: Require Half Re-Activation Payment */}
-                            <button
-                              type="button"
-                              disabled={isActionBusy}
-                              onClick={() => handleResolveAppeal(appeal.id, 'require_payment')}
-                              className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50"
-                              title="Waive malpractice sanction and allow candidate to reactivate at 50% discount (half-price of portal fee: ₦25 of ₦50)."
-                            >
-                              <CreditCard className="w-4 h-4 text-amber-200" />
-                              <span>Require Half Re-Payment (50%)</span>
-                            </button>
+                              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2.5 pt-1">
+                                {/* Action 1: Reinstate Profile */}
+                                <button
+                                  type="button"
+                                  disabled={isActionBusy}
+                                  onClick={() => handleResolveAppeal(appeal.id, 'reinstate')}
+                                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                  title="Reinstate candidate immediately with Approved status. Unlocks all CBT practice."
+                                >
+                                  <CheckCircle2 className="w-4 h-4" />
+                                  <span>Reinstate Profile (Full Unlock)</span>
+                                </button>
 
-                            {/* Action 3: Complete Blockage / Permanent Ban */}
-                            <button
-                              type="button"
-                              disabled={isActionBusy}
-                              onClick={() => {
-                                if (confirm(`Are you sure you want to PERMANENTLY BAN candidate ${appeal.candidate_name}? This will lock this email address out of the platform completely.`)) {
-                                  handleResolveAppeal(appeal.id, 'ban');
-                                }
-                              }}
-                              className="px-4 py-2.5 bg-rose-700 hover:bg-rose-800 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50"
-                              title="Permanently ban candidate. User cannot access the platform with this email."
-                            >
-                              <ShieldAlert className="w-4 h-4" />
-                              <span>Complete Blockage (Ban)</span>
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className={`p-3 rounded-lg border text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 ${
-                          appeal.status === 'banned'
-                            ? 'bg-slate-800 border-slate-700 text-slate-300'
-                            : 'bg-slate-50 border-slate-200 text-slate-600'
-                        }`}>
-                          <div>
-                            <strong>Admin Determination:</strong> {appeal.admin_action || 'Action finalized'}
-                          </div>
-                          <div className="font-mono text-[11px] text-slate-400">
-                            Resolved: {appeal.resolved_at ? new Date(appeal.resolved_at).toLocaleString() : 'Recently'}
-                          </div>
+                                {/* Action 2: Require Half Re-Activation Payment */}
+                                <button
+                                  type="button"
+                                  disabled={isActionBusy}
+                                  onClick={() => handleResolveAppeal(appeal.id, 'require_payment')}
+                                  className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                  title="Waive malpractice sanction and allow candidate to reactivate at 50% discount (half-price of portal fee: ₦25 of ₦50)."
+                                >
+                                  <CreditCard className="w-4 h-4 text-amber-200" />
+                                  <span>Require Half Re-Payment (50%)</span>
+                                </button>
+
+                                {/* Action 3: Complete Blockage / Permanent Ban */}
+                                <button
+                                  type="button"
+                                  disabled={isActionBusy}
+                                  onClick={() => {
+                                    if (confirm(`Are you sure you want to PERMANENTLY BAN candidate ${appeal.candidate_name}? This will lock this email address out of the platform completely.`)) {
+                                      handleResolveAppeal(appeal.id, 'ban');
+                                    }
+                                  }}
+                                  className="px-4 py-2.5 bg-rose-700 hover:bg-rose-800 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                  title="Permanently ban candidate. User cannot access the platform with this email."
+                                >
+                                  <ShieldAlert className="w-4 h-4" />
+                                  <span>Complete Blockage (Ban)</span>
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className={`p-3 rounded-lg border text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 ${
+                              appeal.status === 'banned'
+                                ? 'bg-slate-800 border-slate-700 text-slate-300'
+                                : 'bg-slate-50 border-slate-200 text-slate-600'
+                            }`}>
+                              <div>
+                                <strong>Admin Determination:</strong> {appeal.admin_action || 'Action finalized'}
+                              </div>
+                              <div className="font-mono text-[11px] text-slate-400">
+                                Resolved: {appeal.resolved_at ? new Date(appeal.resolved_at).toLocaleString() : 'Recently'}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
                   );
                 })}
+
+                {/* Appeals Pagination Controls */}
+                {totalAppealPages > 1 && (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-200">
+                    <div className="text-xs text-slate-500 font-bold">
+                      Showing {(appealPage - 1) * appealsPerPage + 1} to {Math.min(appealPage * appealsPerPage, filteredAppeals.length)} of {filteredAppeals.length} appeals
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        disabled={appealPage === 1}
+                        onClick={() => setAppealPage(p => Math.max(1, p - 1))}
+                        className="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-40"
+                      >
+                        Previous
+                      </button>
+                      <div className="text-xs font-bold text-slate-700 px-2">
+                        Page {appealPage} of {totalAppealPages}
+                      </div>
+                      <button
+                        type="button"
+                        disabled={appealPage === totalAppealPages}
+                        onClick={() => setAppealPage(p => Math.min(totalAppealPages, p + 1))}
+                        className="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-40"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1565,57 +1689,83 @@ export const AdminDashboard = () => {
                 <input
                   type="text"
                   value={ticketSearchTerm}
-                  onChange={(e) => setTicketSearchTerm(e.target.value)}
+                  onChange={(e) => {
+                    setTicketSearchTerm(e.target.value);
+                    setTicketPage(1);
+                  }}
                   placeholder="Search by ticket ID, student, subject..."
                   className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>
 
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <button
-                  type="button"
-                  onClick={() => setTicketFilter('all')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    ticketFilter === 'all'
-                      ? 'bg-slate-900 text-white'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  All ({supportTickets.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTicketFilter('open')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    ticketFilter === 'open'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-                  }`}
-                >
-                  Open ({supportTickets.filter(t => t.status === 'open').length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTicketFilter('in_progress')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    ticketFilter === 'in_progress'
-                      ? 'bg-amber-600 text-white'
-                      : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
-                  }`}
-                >
-                  In Review ({supportTickets.filter(t => t.status === 'in_progress').length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTicketFilter('resolved')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    ticketFilter === 'resolved'
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                  }`}
-                >
-                  Resolved ({supportTickets.filter(t => t.status === 'resolved').length})
-                </button>
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => { setTicketFilter('all'); setTicketPage(1); }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      ticketFilter === 'all'
+                        ? 'bg-slate-900 text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    All ({supportTickets.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setTicketFilter('open'); setTicketPage(1); }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      ticketFilter === 'open'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                    }`}
+                  >
+                    Open ({supportTickets.filter(t => t.status === 'open').length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setTicketFilter('in_progress'); setTicketPage(1); }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      ticketFilter === 'in_progress'
+                        ? 'bg-amber-600 text-white'
+                        : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                    }`}
+                  >
+                    In Review ({supportTickets.filter(t => t.status === 'in_progress').length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setTicketFilter('resolved'); setTicketPage(1); }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      ticketFilter === 'resolved'
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                    }`}
+                  >
+                    Resolved ({supportTickets.filter(t => t.status === 'resolved').length})
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => toggleAllTickets(true)}
+                    className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold border border-slate-300 transition-all flex items-center gap-1 shadow-sm"
+                    title="Expand all ticket details"
+                  >
+                    <ChevronDown className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Expand All</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleAllTickets(false)}
+                    className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold border border-slate-300 transition-all flex items-center gap-1 shadow-sm"
+                    title="Collapse all ticket details"
+                  >
+                    <ChevronUp className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Collapse All</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1625,18 +1775,7 @@ export const AdminDashboard = () => {
                 <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
                 <div className="text-xs font-bold">Synchronizing candidate inquiries...</div>
               </div>
-            ) : supportTickets.filter(t => {
-                if (ticketFilter !== 'all' && t.status !== ticketFilter) return false;
-                if (!ticketSearchTerm.trim()) return true;
-                const term = ticketSearchTerm.toLowerCase();
-                return (
-                  t.id.toLowerCase().includes(term) ||
-                  (t.candidateName || '').toLowerCase().includes(term) ||
-                  (t.candidateEmail || '').toLowerCase().includes(term) ||
-                  (t.subject || '').toLowerCase().includes(term) ||
-                  (t.message || '').toLowerCase().includes(term)
-                );
-              }).length === 0 ? (
+            ) : filteredTickets.length === 0 ? (
               <div className="p-12 text-center text-slate-500 border border-dashed border-slate-300 rounded-xl space-y-2">
                 <ShieldCheck className="w-10 h-10 text-emerald-600 mx-auto" />
                 <div className="text-sm font-bold text-slate-800">No Support Inquiries in this Queue</div>
@@ -1648,162 +1787,239 @@ export const AdminDashboard = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {supportTickets
-                  .filter(t => {
-                    if (ticketFilter !== 'all' && t.status !== ticketFilter) return false;
-                    if (!ticketSearchTerm.trim()) return true;
-                    const term = ticketSearchTerm.toLowerCase();
-                    return (
-                      t.id.toLowerCase().includes(term) ||
-                      (t.candidateName || '').toLowerCase().includes(term) ||
-                      (t.candidateEmail || '').toLowerCase().includes(term) ||
-                      (t.subject || '').toLowerCase().includes(term) ||
-                      (t.message || '').toLowerCase().includes(term)
-                    );
-                  })
-                  .map(ticket => {
-                    const isOpen = ticket.status === 'open';
-                    const isBusy = ticketActionLoading === ticket.id;
+                {paginatedTickets.map(ticket => {
+                  const isOpen = ticket.status === 'open';
+                  const isBusy = ticketActionLoading === ticket.id;
+                  const isExpanded = expandedTickets[ticket.id] ?? (ticket.status === 'open');
+                  const messageList = (ticket.messages && ticket.messages.length > 0) ? ticket.messages : [
+                    {
+                      id: 'init',
+                      sender: 'candidate',
+                      senderName: ticket.candidateName || 'Candidate',
+                      message: ticket.message,
+                      createdAt: ticket.createdAt
+                    },
+                    ...(ticket.adminReply ? [{
+                      id: 'admin_init',
+                      sender: 'admin',
+                      senderName: ticket.adminRepliedBy || 'Support Desk Administrator',
+                      message: ticket.adminReply,
+                      createdAt: ticket.resolvedAt || ticket.createdAt
+                    }] : [])
+                  ];
 
-                    return (
-                      <div
-                        key={ticket.id}
-                        className={`border rounded-2xl p-5 shadow-sm transition-all space-y-4 ${
-                          isOpen
-                            ? 'border-blue-400 bg-blue-50/20'
-                            : ticket.status === 'in_progress'
-                            ? 'border-amber-400 bg-amber-50/20'
-                            : 'border-slate-200 bg-white'
-                        }`}
-                      >
-                        {/* Ticket Card Header */}
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/60">
-                          <div className="space-y-0.5">
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono font-bold text-xs bg-slate-100 text-blue-900 px-2 py-0.5 rounded border border-slate-300">
-                                {ticket.id}
-                              </span>
-                              <h3 className="text-sm font-black uppercase tracking-tight text-slate-900">
-                                {ticket.candidateName || 'Candidate'}
-                              </h3>
-                              <span className="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-slate-100 text-slate-700 uppercase">
-                                {ticket.category}
-                              </span>
-                            </div>
-                            <div className="text-xs font-mono text-slate-500">
-                              Practice ID: <strong>{ticket.practiceId || 'N/A'}</strong> • Reg No: <strong>{ticket.regNumber || 'N/A'}</strong> • Email: {ticket.candidateEmail} • Tel: {ticket.candidatePhone || 'N/A'}
-                            </div>
-                            <div className="text-[11px] text-slate-400">
-                              Submitted: {new Date(ticket.createdAt).toLocaleString()}
-                            </div>
-                          </div>
-
-                          <div className="self-start sm:self-auto">
-                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-black text-xs uppercase ${
-                              ticket.status === 'resolved'
-                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                                : ticket.status === 'in_progress'
-                                ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                                : 'bg-blue-100 text-blue-800 border border-blue-300 animate-pulse'
-                            }`}>
-                              {ticket.status === 'resolved' ? (
-                                <>
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                                  <span>Resolved</span>
-                                </>
-                              ) : ticket.status === 'in_progress' ? (
-                                <>
-                                  <Clock className="w-3.5 h-3.5 text-amber-600" />
-                                  <span>In Review</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Clock className="w-3.5 h-3.5 text-blue-600" />
-                                  <span>Open Ticket</span>
-                                </>
-                              )}
+                  return (
+                    <div
+                      key={ticket.id}
+                      className={`border rounded-2xl p-4 sm:p-5 shadow-sm transition-all space-y-4 ${
+                        isOpen
+                          ? 'border-blue-400 bg-blue-50/20'
+                          : ticket.status === 'in_progress'
+                          ? 'border-amber-400 bg-amber-50/20'
+                          : 'border-slate-200 bg-white'
+                      }`}
+                    >
+                      {/* Ticket Card Header (Clickable Collapse Toggle) */}
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/60">
+                        <div className="space-y-0.5">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-mono font-bold text-xs bg-slate-100 text-blue-900 px-2 py-0.5 rounded border border-slate-300">
+                              {ticket.id}
+                            </span>
+                            <h3 className="text-sm font-black uppercase tracking-tight text-slate-900">
+                              {ticket.candidateName || 'Candidate'}
+                            </h3>
+                            <span className="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-slate-100 text-slate-700 uppercase">
+                              {ticket.category}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-mono text-[9px] font-bold">
+                              {messageList.length} Message{messageList.length > 1 ? 's' : ''}
                             </span>
                           </div>
+                          <div className="text-xs font-mono text-slate-500">
+                            Practice ID: <strong>{ticket.practiceId || 'N/A'}</strong> • Reg No: <strong>{ticket.regNumber || 'N/A'}</strong> • Email: {ticket.candidateEmail} • Tel: {ticket.candidatePhone || 'N/A'}
+                          </div>
+                          <div className="text-[11px] text-slate-400">
+                            Subject: <strong className="text-slate-700">{ticket.subject}</strong> • Logged: {new Date(ticket.createdAt).toLocaleString()}
+                          </div>
                         </div>
 
-                        {/* Ticket Subject & Inquiry Message */}
-                        <div className="p-4 rounded-xl border bg-white border-slate-200 text-xs leading-relaxed space-y-1.5">
-                          <div className="font-bold text-slate-900 text-xs">
-                            Subject: {ticket.subject}
-                          </div>
-                          <p className="text-slate-700 whitespace-pre-wrap pl-4 border-l-2 border-blue-500 font-medium">
-                            {ticket.message}
-                          </p>
-                        </div>
+                        {/* Status Badge & Collapse Toggle */}
+                        <div className="flex items-center gap-2 self-start sm:self-auto">
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-black text-xs uppercase ${
+                            ticket.status === 'resolved'
+                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                              : ticket.status === 'in_progress'
+                              ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                              : 'bg-blue-100 text-blue-800 border border-blue-300 animate-pulse'
+                          }`}>
+                            {ticket.status === 'resolved' ? (
+                              <>
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>Resolved</span>
+                              </>
+                            ) : ticket.status === 'in_progress' ? (
+                              <>
+                                <Clock className="w-3.5 h-3.5 text-amber-600" />
+                                <span>In Review</span>
+                              </>
+                            ) : (
+                              <>
+                                <Clock className="w-3.5 h-3.5 text-blue-600" />
+                                <span>Open Ticket</span>
+                              </>
+                            )}
+                          </span>
 
-                        {/* Existing Admin Reply (if already resolved) */}
-                        {ticket.adminReply && (
-                          <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-xl text-xs space-y-1">
-                            <div className="flex items-center justify-between text-[10px] font-black uppercase text-emerald-900">
-                              <span className="flex items-center gap-1">
-                                <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
-                                <span>Official Administrator Response ({ticket.adminRepliedBy || 'Administrator'}):</span>
-                              </span>
-                              <span className="font-mono text-emerald-700 font-normal">
-                                {ticket.resolvedAt ? new Date(ticket.resolvedAt).toLocaleString() : 'Recent'}
-                              </span>
-                            </div>
-                            <div className="text-emerald-950 font-medium whitespace-pre-wrap pl-4 border-l-2 border-emerald-600">
-                              {ticket.adminReply}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Admin Resolution Section */}
-                        <div className="space-y-2 pt-1 border-t border-slate-100">
-                          <label className="block text-[11px] font-bold text-slate-700 uppercase">
-                            {ticket.adminReply ? 'Update Resolution / Additional Notes:' : 'Compose Official Administrator Resolution:'}
-                          </label>
-                          <textarea
-                            rows={3}
-                            value={ticketReplyNotes[ticket.id] !== undefined ? ticketReplyNotes[ticket.id] : (ticket.adminReply || '')}
-                            onChange={(e) => setTicketReplyNotes(prev => ({ ...prev, [ticket.id]: e.target.value }))}
-                            placeholder="Type the official answer or instructions for the student. An automated email with this resolution will be dispatched to their registered email address..."
-                            className="w-full p-2.5 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500/20 bg-white"
-                          />
-
-                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[11px] font-bold text-slate-600 uppercase">Set Status:</span>
-                              <select
-                                value={ticketReplyStatus[ticket.id] || (ticket.status === 'open' ? 'resolved' : ticket.status)}
-                                onChange={(e) => setTicketReplyStatus(prev => ({ ...prev, [ticket.id]: e.target.value }))}
-                                className="px-2.5 py-1 rounded-lg border border-slate-300 text-xs font-bold text-slate-700 bg-white"
-                              >
-                                <option value="resolved">Mark as Resolved</option>
-                                <option value="in_progress">Mark as In Progress</option>
-                                <option value="open">Keep Open</option>
-                              </select>
-                            </div>
-
-                            <button
-                              type="button"
-                              disabled={isBusy}
-                              onClick={() => handleResolveTicket(ticket.id)}
-                              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50"
-                            >
-                              {isBusy ? (
-                                <>
-                                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                  <span>Dispatching Resolution...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Send className="w-3.5 h-3.5" />
-                                  <span>Dispatch Resolution Email &amp; Save</span>
-                                </>
-                              )}
-                            </button>
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => toggleTicketExpand(ticket.id)}
+                            className="p-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 text-slate-600 transition-all flex items-center gap-1 text-xs font-bold"
+                            title={isExpanded ? 'Collapse Ticket' : 'Expand Ticket'}
+                          >
+                            {isExpanded ? (
+                              <>
+                                <ChevronUp className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline text-[10px]">Collapse</span>
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline text-[10px]">Thread</span>
+                              </>
+                            )}
+                          </button>
                         </div>
                       </div>
-                    );
-                  })}
+
+                      {/* Collapsible Ticket Body */}
+                      {isExpanded && (
+                        <div className="space-y-4 pt-1 animate-in fade-in duration-150">
+                          {/* Full Conversation Thread */}
+                          <div className="space-y-2">
+                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                              <span>Conversation Thread ({messageList.length}):</span>
+                              <span className="font-mono text-[9px] text-slate-400">Chronological Order</span>
+                            </div>
+
+                            <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
+                              {messageList.map((m, idx) => (
+                                <div
+                                  key={m.id || idx}
+                                  className={`p-3.5 rounded-xl text-xs space-y-1.5 ${
+                                    m.sender === 'admin'
+                                      ? 'bg-emerald-50 border border-emerald-300 ml-3 sm:ml-6'
+                                      : 'bg-white border border-slate-200 mr-3 sm:mr-6'
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between text-[10px] font-bold">
+                                    <span className={`flex items-center gap-1.5 ${m.sender === 'admin' ? 'text-emerald-900 font-black' : 'text-slate-800'}`}>
+                                      {m.sender === 'admin' ? (
+                                        <>
+                                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-700 flex-shrink-0" />
+                                          <span>{m.senderName || 'Support Desk Administrator'} (Admin)</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <User className="w-3 h-3 text-slate-500 flex-shrink-0" />
+                                          <span>{m.senderName || ticket.candidateName} (Candidate)</span>
+                                        </>
+                                      )}
+                                    </span>
+                                    <span className="text-slate-400 font-mono text-[9px]">
+                                      {m.createdAt ? new Date(m.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
+                                    </span>
+                                  </div>
+                                  <p className="whitespace-pre-wrap text-slate-800 leading-relaxed pl-2.5 border-l-2 border-slate-300 font-medium text-[11px]">
+                                    {m.message}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Admin Resolution & Reply Section */}
+                          <div className="space-y-2 pt-2 border-t border-slate-100">
+                            <label className="block text-[11px] font-bold text-slate-700 uppercase">
+                              Compose Administrator Response / Resolution:
+                            </label>
+                            <textarea
+                              rows={3}
+                              value={ticketReplyNotes[ticket.id] !== undefined ? ticketReplyNotes[ticket.id] : ''}
+                              onChange={(e) => setTicketReplyNotes(prev => ({ ...prev, [ticket.id]: e.target.value }))}
+                              placeholder="Type your official answer or instructions for the student. An automated email with this response will be dispatched to their registered email address..."
+                              className="w-full p-2.5 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500/20 bg-white"
+                            />
+
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] font-bold text-slate-600 uppercase">Set Status:</span>
+                                <select
+                                  value={ticketReplyStatus[ticket.id] || (ticket.status === 'open' ? 'resolved' : ticket.status)}
+                                  onChange={(e) => setTicketReplyStatus(prev => ({ ...prev, [ticket.id]: e.target.value }))}
+                                  className="px-2.5 py-1 rounded-lg border border-slate-300 text-xs font-bold text-slate-700 bg-white"
+                                >
+                                  <option value="resolved">Mark as Resolved (Close Ticket)</option>
+                                  <option value="in_progress">Mark as In Review (Keep Open for Candidate)</option>
+                                  <option value="open">Keep Open</option>
+                                </select>
+                              </div>
+
+                              <button
+                                type="button"
+                                disabled={isBusy || !(ticketReplyNotes[ticket.id] || '').trim()}
+                                onClick={() => handleResolveTicket(ticket.id)}
+                                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50"
+                              >
+                                {isBusy ? (
+                                  <>
+                                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    <span>Dispatching Resolution...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Send className="w-3.5 h-3.5" />
+                                    <span>Dispatch Response Email &amp; Save</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* Support Tickets Pagination Controls */}
+                {totalTicketPages > 1 && (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-200">
+                    <div className="text-xs text-slate-500 font-bold">
+                      Showing {(ticketPage - 1) * ticketsPerPage + 1} to {Math.min(ticketPage * ticketsPerPage, filteredTickets.length)} of {filteredTickets.length} inquiries
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        disabled={ticketPage === 1}
+                        onClick={() => setTicketPage(p => Math.max(1, p - 1))}
+                        className="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-40"
+                      >
+                        Previous
+                      </button>
+                      <div className="text-xs font-bold text-slate-700 px-2">
+                        Page {ticketPage} of {totalTicketPages}
+                      </div>
+                      <button
+                        type="button"
+                        disabled={ticketPage === totalTicketPages}
+                        onClick={() => setTicketPage(p => Math.min(totalTicketPages, p + 1))}
+                        className="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-40"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

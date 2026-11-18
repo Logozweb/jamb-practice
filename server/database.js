@@ -252,6 +252,7 @@ function initSchema(db) {
     CREATE INDEX IF NOT EXISTS idx_tickets_candidate ON support_tickets(candidate_id);
     CREATE INDEX IF NOT EXISTS idx_tickets_status ON support_tickets(status);
   `);
+  try { db.exec('ALTER TABLE support_tickets ADD COLUMN messages TEXT DEFAULT "[]"'); } catch (e) {}
 
   // Ensure Default Admin Exists
   const adminCheck = db.prepare('SELECT id FROM admin_users WHERE email = ?').get('hello@pauladisa.com');
@@ -1203,11 +1204,21 @@ export function createSupportTicket({
   const now = new Date().toISOString();
   const id = `TKT-2026-${crypto.randomInt(1000, 9999)}`;
 
+  const initialMessages = [
+    {
+      id: `msg-${Date.now()}-1`,
+      sender: 'candidate',
+      senderName: cand?.name || 'Candidate',
+      message: message.trim(),
+      createdAt: now
+    }
+  ];
+
   db.prepare(`
     INSERT INTO support_tickets (
       id, candidate_id, candidate_name, candidate_email, candidate_phone,
-      reg_number, practice_id, category, subject, message, status, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)
+      reg_number, practice_id, category, subject, message, status, messages, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?)
   `).run(
     id,
     candidateId,
@@ -1219,6 +1230,7 @@ export function createSupportTicket({
     category,
     subject.trim(),
     message.trim(),
+    JSON.stringify(initialMessages),
     now
   );
 
@@ -1245,16 +1257,91 @@ export function getSupportTickets(candidateId = null) {
 export function resolveSupportTicket(ticketId, adminReply, newStatus = 'resolved', adminName = 'Support Desk Administrator') {
   const db = getDatabase();
   const now = new Date().toISOString();
+  const existing = getSupportTicketById(ticketId);
+  let messages = existing && Array.isArray(existing.messages) ? [...existing.messages] : [];
+
+  if (adminReply && adminReply.trim()) {
+    messages.push({
+      id: `msg-${Date.now()}`,
+      sender: 'admin',
+      senderName: adminName,
+      message: adminReply.trim(),
+      createdAt: now
+    });
+  }
+
+  const resolvedAtVal = newStatus === 'resolved' ? now : (existing?.resolvedAt || null);
+
   db.prepare(`
     UPDATE support_tickets
-    SET status = ?, admin_reply = ?, admin_replied_by = ?, resolved_at = ?
+    SET status = ?, admin_reply = ?, admin_replied_by = ?, resolved_at = ?, messages = ?
     WHERE id = ?
-  `).run(newStatus, adminReply.trim(), adminName, now, ticketId);
+  `).run(newStatus, adminReply.trim(), adminName, resolvedAtVal, JSON.stringify(messages), ticketId);
 
   return getSupportTicketById(ticketId);
 }
 
+export function replyToSupportTicket(ticketId, { sender = 'candidate', senderName, message, candidateId = null }) {
+  const db = getDatabase();
+  const ticket = getSupportTicketById(ticketId);
+  if (!ticket) return { success: false, error: 'Support ticket not found.' };
+
+  if (ticket.status === 'resolved') {
+    return {
+      success: false,
+      error: 'This support ticket has already been marked as resolved and closed by administration.'
+    };
+  }
+
+  if (sender === 'candidate' && candidateId && ticket.candidateId !== candidateId) {
+    return { success: false, error: 'Unauthorized to reply to this ticket.' };
+  }
+
+  const now = new Date().toISOString();
+  const messages = Array.isArray(ticket.messages) ? [...ticket.messages] : [];
+  messages.push({
+    id: `msg-${Date.now()}`,
+    sender,
+    senderName: senderName || (sender === 'candidate' ? ticket.candidateName : 'Support Desk Administrator'),
+    message: message.trim(),
+    createdAt: now
+  });
+
+  const nextStatus = sender === 'candidate' ? 'in_progress' : ticket.status;
+
+  db.prepare(`
+    UPDATE support_tickets
+    SET messages = ?, status = ?
+    WHERE id = ?
+  `).run(JSON.stringify(messages), nextStatus, ticketId);
+
+  return { success: true, ticket: getSupportTicketById(ticketId) };
+}
+
 function formatTicketRow(r) {
+  let parsedMessages = safeJsonParse(r.messages, []);
+  if (!Array.isArray(parsedMessages) || parsedMessages.length === 0) {
+    parsedMessages = [];
+    if (r.message) {
+      parsedMessages.push({
+        id: 'initial',
+        sender: 'candidate',
+        senderName: r.candidate_name || 'Candidate',
+        message: r.message,
+        createdAt: r.created_at
+      });
+    }
+    if (r.admin_reply) {
+      parsedMessages.push({
+        id: 'admin_initial',
+        sender: 'admin',
+        senderName: r.admin_replied_by || 'Support Desk Administrator',
+        message: r.admin_reply,
+        createdAt: r.resolved_at || r.created_at
+      });
+    }
+  }
+
   return {
     id: r.id,
     candidateId: r.candidate_id,
@@ -1267,6 +1354,7 @@ function formatTicketRow(r) {
     subject: r.subject,
     message: r.message,
     status: r.status,
+    messages: parsedMessages,
     adminReply: r.admin_reply,
     adminRepliedBy: r.admin_replied_by,
     createdAt: r.created_at,
