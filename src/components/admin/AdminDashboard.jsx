@@ -1453,6 +1453,18 @@ export const AdminDashboard = () => {
                   const isPending = appeal.status === 'pending';
                   const isActionBusy = appealActionLoading === appeal.id;
                   const isExpanded = expandedAppeals[appeal.id] ?? (appeal.status === 'pending');
+                  const candName = appeal.candidateName || appeal.candidate_name || 'Candidate Name';
+                  const candReg = appeal.regNumber || appeal.reg_number || 'N/A';
+                  const candEmail = appeal.candidateEmail || appeal.candidate_email || 'N/A';
+                  const submissionDate = appeal.createdAt || appeal.created_at;
+                  const formattedDate = submissionDate && !isNaN(new Date(submissionDate).getTime())
+                    ? new Date(submissionDate).toLocaleString()
+                    : 'N/A';
+                  const resolvedDate = appeal.resolvedAt || appeal.resolved_at;
+                  const formattedResolvedDate = resolvedDate && !isNaN(new Date(resolvedDate).getTime())
+                    ? new Date(resolvedDate).toLocaleString()
+                    : 'Recently';
+                  const adminActionText = appeal.adminAction || appeal.admin_action || 'Action finalized';
 
                   return (
                     <div
@@ -1470,14 +1482,14 @@ export const AdminDashboard = () => {
                         <div className="space-y-0.5">
                           <div className="flex items-center gap-2">
                             <h3 className={`text-sm font-black uppercase tracking-tight ${appeal.status === 'banned' ? 'text-white' : 'text-slate-900'}`}>
-                              {appeal.candidate_name || 'Candidate Name'}
+                              {candName}
                             </h3>
                             <span className="px-2 py-0.5 rounded font-mono text-[11px] font-bold bg-slate-100 text-slate-800 border border-slate-300">
-                              {appeal.reg_number || 'N/A'}
+                              {candReg}
                             </span>
                           </div>
                           <div className={`text-xs font-mono ${appeal.status === 'banned' ? 'text-slate-400' : 'text-slate-600'}`}>
-                            {appeal.candidate_email} • Submitted: {new Date(appeal.created_at).toLocaleString()}
+                            {candEmail} • Submitted: {formattedDate}
                           </div>
                         </div>
 
@@ -1590,7 +1602,7 @@ export const AdminDashboard = () => {
                                   type="button"
                                   disabled={isActionBusy}
                                   onClick={() => {
-                                    if (confirm(`Are you sure you want to PERMANENTLY BAN candidate ${appeal.candidate_name}? This will lock this email address out of the platform completely.`)) {
+                                    if (confirm(`Are you sure you want to PERMANENTLY BAN candidate ${candName}? This will lock this email address out of the platform completely.`)) {
                                       handleResolveAppeal(appeal.id, 'ban');
                                     }
                                   }}
@@ -1609,10 +1621,10 @@ export const AdminDashboard = () => {
                                 : 'bg-slate-50 border-slate-200 text-slate-600'
                             }`}>
                               <div>
-                                <strong>Admin Determination:</strong> {appeal.admin_action || 'Action finalized'}
+                                <strong>Admin Determination:</strong> {adminActionText}
                               </div>
                               <div className="font-mono text-[11px] text-slate-400">
-                                Resolved: {appeal.resolved_at ? new Date(appeal.resolved_at).toLocaleString() : 'Recently'}
+                                Resolved: {formattedResolvedDate}
                               </div>
                             </div>
                           )}

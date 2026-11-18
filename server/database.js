@@ -1038,15 +1038,47 @@ export function submitCandidateAppeal(candidateId, reason) {
 
 export function getAllAppeals() {
   const db = getDatabase();
-  return db.prepare(`
-    SELECT id, candidate_id as candidateId, candidate_name as candidateName,
-           candidate_email as candidateEmail, reg_number as regNumber,
-           reason, status, admin_action as adminAction,
-           created_at as createdAt, resolved_at as resolvedAt
+  const rows = db.prepare(`
+    SELECT *
     FROM candidate_appeals
     ORDER BY created_at DESC
-    LIMIT 100
+    LIMIT 200
   `).all();
+
+  return rows.map(r => {
+    let name = r.candidate_name;
+    let email = r.candidate_email;
+    let regNum = r.reg_number;
+
+    if (!name || !email) {
+      const cand = getCandidateById(r.candidate_id);
+      if (cand) {
+        if (!name) name = cand.name;
+        if (!email) email = cand.email;
+        if (!regNum) regNum = cand.regNumber;
+      }
+    }
+
+    return {
+      id: r.id,
+      candidateId: r.candidate_id,
+      candidate_id: r.candidate_id,
+      candidateName: name || 'Candidate',
+      candidate_name: name || 'Candidate',
+      candidateEmail: email || '',
+      candidate_email: email || '',
+      regNumber: regNum || '',
+      reg_number: regNum || '',
+      reason: r.reason,
+      status: r.status,
+      adminAction: r.admin_action,
+      admin_action: r.admin_action,
+      createdAt: r.created_at,
+      created_at: r.created_at,
+      resolvedAt: r.resolved_at,
+      resolved_at: r.resolved_at
+    };
+  });
 }
 
 export function resolveAppeal(appealId, action, adminNotes = '') {
