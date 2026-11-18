@@ -448,7 +448,7 @@ export const ResultSlip = () => {
         )}
       </div>
 
-      {/* Official JAMB Result Slip Document for Active Selected Attempt */}
+      {/* CBT Simulation Mock Result Slip Document for Active Selected Attempt */}
       <div id="printable-result-slip" className="max-w-4xl w-full bg-white rounded-2xl shadow-xl border-2 border-slate-300 overflow-hidden mb-8">
         {/* Document Header */}
         <div className="bg-[#006633] text-white p-6 md:p-8 text-center relative border-b-4 border-amber-400">
@@ -457,7 +457,7 @@ export const ResultSlip = () => {
               <circle cx="50" cy="50" r="45" fill="#006633" stroke="#FFB800" strokeWidth="4" />
               <path d="M50 15 L58 35 L80 38 L63 52 L68 74 L50 62 L32 74 L37 52 L20 38 L42 35 Z" fill="#FFB800" />
               <circle cx="50" cy="50" r="14" fill="#FFFFFF" />
-              <text x="50" y="55" fontSize="11" fontWeight="bold" textAnchor="middle" fill="#006633">JAMB</text>
+              <text x="50" y="55" fontSize="11" fontWeight="bold" textAnchor="middle" fill="#006633">CBT</text>
             </svg>
           </div>
           <div className="text-xs uppercase tracking-widest text-amber-300 font-extrabold">
@@ -612,9 +612,10 @@ export const ResultSlip = () => {
 
           {/* Barcode & Security Stamp Simulation */}
           <div className="mt-8 pt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-400 text-xs">
-            <div className="space-y-1 font-mono text-[10px]">
+            <div className="space-y-0.5 font-mono text-[10px]">
               <div>AUTHENTICATION CODE: {Math.random().toString(36).substring(2, 12).toUpperCase()}-UTME</div>
-              <div>SYSTEM GENERATED REPORT • NO SIGNATURE REQUIRED</div>
+              <div>CBT SIMULATION PERFORMANCE SUMMARY • INDEPENDENT PRACTICE RESOURCE</div>
+              <div className="text-slate-500 font-semibold">NOT AN OFFICIAL GOVERNMENT DOCUMENT • FOR PRACTICE & PREPARATION ONLY</div>
             </div>
 
             {/* Simulated Barcode */}

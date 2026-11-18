@@ -41,17 +41,17 @@ export const AdminLoginView = () => {
               <circle cx="50" cy="50" r="45" fill="#006633" stroke="#FFB800" strokeWidth="4" />
               <path d="M50 15 L58 35 L80 38 L63 52 L68 74 L50 62 L32 74 L37 52 L20 38 L42 35 Z" fill="#FFB800" />
               <circle cx="50" cy="50" r="14" fill="#FFFFFF" />
-              <text x="50" y="55" fontSize="11" fontWeight="bold" textAnchor="middle" fill="#006633">JAMB</text>
+              <text x="50" y="55" fontSize="11" fontWeight="bold" textAnchor="middle" fill="#006633">CBT</text>
             </svg>
           </div>
           <div className="text-[10px] uppercase font-bold tracking-widest text-amber-300">
-            Joint Admissions and Matriculation Board
+            Independent UTME CBT Simulator
           </div>
           <h1 className="text-xl font-black uppercase tracking-tight text-white">
-            JAMB Admin Command Portal
+            Central Admin Command Console
           </h1>
           <p className="text-xs text-slate-400 mt-0.5">
-            Platform Administrator Authentication & CBT Control
+            Platform Administrator Authentication &amp; CBT Control
           </p>
         </div>
 

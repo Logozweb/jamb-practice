@@ -34,24 +34,24 @@ export const LoginView = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#003b1d] via-[#006633] to-[#012e17] flex flex-col items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl overflow-hidden border border-emerald-800 animate-in fade-in duration-200">
-        {/* Top Header with official JAMB Emblem */}
+        {/* Top Header */}
         <div className="bg-[#004d25] p-6 text-center text-white relative border-b-4 border-amber-400">
           <div className="w-16 h-16 mx-auto rounded-full bg-white p-1.5 flex items-center justify-center border-2 border-amber-400 shadow-md mb-2">
             <svg viewBox="0 0 100 100" className="w-full h-full">
               <circle cx="50" cy="50" r="45" fill="#006633" stroke="#FFB800" strokeWidth="4" />
               <path d="M50 15 L58 35 L80 38 L63 52 L68 74 L50 62 L32 74 L37 52 L20 38 L42 35 Z" fill="#FFB800" />
               <circle cx="50" cy="50" r="14" fill="#FFFFFF" />
-              <text x="50" y="55" fontSize="11" fontWeight="bold" textAnchor="middle" fill="#006633">JAMB</text>
+              <text x="50" y="55" fontSize="11" fontWeight="bold" textAnchor="middle" fill="#006633">CBT</text>
             </svg>
           </div>
           <div className="text-[10px] uppercase font-bold tracking-widest text-amber-300">
-            UTME CBT Examination Prep
+            Independent Practice &amp; Simulation Portal
           </div>
           <h1 className="text-xl font-black uppercase tracking-tight text-white">
-            JAMB Practice Platform
+            Candidate CBT Portal
           </h1>
           <p className="text-xs text-emerald-200 mt-1">
-            Candidate Sign In &amp; CBT Simulation Portal
+            Candidate Sign In • Independent Study Platform
           </p>
         </div>
 
@@ -157,7 +157,7 @@ export const LoginView = () => {
         <div className="bg-slate-50 px-6 py-3 border-t border-slate-200 text-[11px] text-slate-500 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
-            <span>JAMB Practice System</span>
+            <span>Independent CBT Practice Portal</span>
           </div>
           <button
             type="button"
@@ -185,7 +185,7 @@ export const LoginView = () => {
           onClick={() => setIsDisclaimerOpen(true)}
           className="text-[11px] text-emerald-200 hover:text-amber-300 font-medium transition-colors underline decoration-dotted"
         >
-          Notice: This platform is an independent JAMB Practice &amp; Simulation Platform. Read Full Disclaimer
+          Notice: This platform is an independent CBT simulation and study tool. Not affiliated with JAMB. Read Full Disclaimer
         </button>
       </div>
     </div>

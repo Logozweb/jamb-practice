@@ -34,12 +34,12 @@ export const Header = () => {
               <circle cx="50" cy="50" r="45" fill="#006633" stroke="#FFB800" strokeWidth="4" />
               <path d="M50 15 L58 35 L80 38 L63 52 L68 74 L50 62 L32 74 L37 52 L20 38 L42 35 Z" fill="#FFB800" />
               <circle cx="50" cy="50" r="14" fill="#FFFFFF" />
-              <text x="50" y="55" fontSize="11" fontWeight="bold" textAnchor="middle" fill="#006633">JAMB</text>
+              <text x="50" y="55" fontSize="11" fontWeight="bold" textAnchor="middle" fill="#006633">CBT</text>
             </svg>
           </div>
           <div>
-            <div className="text-[9px] sm:text-[11px] font-semibold text-amber-300 tracking-wider uppercase leading-none">
-              Joint Admissions and Matriculation Board
+            <div className="text-[9px] sm:text-[11px] font-bold text-amber-300 tracking-wider uppercase leading-none">
+              Independent UTME Practice &amp; Simulation Engine
             </div>
             <div className="text-xs sm:text-base font-extrabold tracking-tight text-white flex items-center gap-1.5 sm:gap-2">
               <span className="truncate">UTME CBT SIMULATION</span>

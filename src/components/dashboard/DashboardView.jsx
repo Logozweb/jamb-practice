@@ -193,12 +193,12 @@ export const DashboardView = () => {
                 <circle cx="50" cy="50" r="45" fill="#006633" stroke="#FFB800" strokeWidth="4" />
                 <path d="M50 15 L58 35 L80 38 L63 52 L68 74 L50 62 L32 74 L37 52 L20 38 L42 35 Z" fill="#FFB800" />
                 <circle cx="50" cy="50" r="14" fill="#FFFFFF" />
-                <text x="50" y="55" fontSize="11" fontWeight="bold" textAnchor="middle" fill="#006633">JAMB</text>
+                <text x="50" y="55" fontSize="11" fontWeight="bold" textAnchor="middle" fill="#006633">CBT</text>
               </svg>
             </div>
             <div>
               <div className="text-[9px] sm:text-[10px] uppercase font-bold tracking-widest text-amber-300 leading-none">
-                JAMB Practice Platform
+                Independent UTME CBT Simulator
               </div>
               <div className="text-xs sm:text-base font-black tracking-tight uppercase leading-snug">
                 Candidate CBT Dashboard
@@ -1030,9 +1030,9 @@ export const DashboardView = () => {
       {/* Bottom Global Footer with Disclaimer Link */}
       <footer className="mt-8 border-t border-slate-300 bg-white py-4 px-6 text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-3 max-w-7xl w-full mx-auto rounded-t-xl shadow-sm">
         <div className="flex items-center gap-2">
-          <span className="font-bold text-slate-700 uppercase">JAMB Practice Platform</span>
+          <span className="font-bold text-slate-700 uppercase">Independent CBT Simulator</span>
           <span>•</span>
-          <span>JAMB CBT Practice Portal</span>
+          <span>Candidate Practice &amp; Study Resource</span>
         </div>
 
         <div className="flex items-center gap-4">
@@ -1045,7 +1045,7 @@ export const DashboardView = () => {
             <span>Platform Disclaimer Notice</span>
           </button>
           <span className="text-slate-400">|</span>
-          <span className="text-[11px] text-slate-500 font-mono">JAMB Simulation Platform</span>
+          <span className="text-[11px] text-slate-500 font-mono">Independent Preparation Engine (Not Affiliated with JAMB)</span>
         </div>
       </footer>
 

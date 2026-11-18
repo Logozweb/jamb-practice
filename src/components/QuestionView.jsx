@@ -10,7 +10,8 @@ export const QuestionView = () => {
     examMode,
     selectOption,
     toggleFlag,
-    activeKeyFeedback
+    activeKeyFeedback,
+    candidate
   } = useExam();
 
   const subjectData = examData[activeSubjectId];
@@ -42,7 +43,18 @@ export const QuestionView = () => {
     : null;
 
   return (
-    <div className="bg-white rounded-lg border border-slate-300 shadow-sm p-4 md:p-6 flex flex-col h-full min-h-[500px]">
+    <div className="bg-white rounded-lg border border-slate-300 shadow-sm p-4 md:p-6 flex flex-col h-full min-h-[500px] relative overflow-hidden">
+      {/* Subtle CBT Security Watermark */}
+      <div className="absolute inset-0 pointer-events-none select-none flex items-center justify-center opacity-[0.035] -rotate-12 z-0">
+        <div className="text-center">
+          <div className="text-5xl md:text-7xl font-black font-mono tracking-widest uppercase">
+            {candidate?.regNumber || 'CBT SIMULATION'}
+          </div>
+          <div className="text-2xl md:text-3xl font-extrabold uppercase mt-2">
+            INDEPENDENT UTME PRACTICE ENGINE
+          </div>
+        </div>
+      </div>
       {/* Top Question Meta Info Bar */}
       <div className="flex flex-wrap items-center justify-between pb-3 border-b border-slate-200 mb-4 gap-2">
         <div className="flex items-center gap-3">
@@ -201,7 +213,7 @@ export const QuestionView = () => {
             <div className="mt-5 p-4 bg-blue-50 border-l-4 border-blue-600 rounded-r-lg text-blue-900 text-xs md:text-sm">
               <div className="flex items-center gap-1.5 font-bold mb-1 text-blue-950">
                 <Info className="w-4 h-4 text-blue-700 flex-shrink-0" />
-                <span>JAMB Solution & Explanation:</span>
+                <span>Comprehensive Solution &amp; Explanation:</span>
               </div>
               <p className="leading-relaxed select-text whitespace-pre-line">{currentQ.explanation}</p>
             </div>

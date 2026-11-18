@@ -533,10 +533,10 @@ export const AdminDashboard = () => {
             </div>
             <div>
               <div className="text-[10px] uppercase font-bold tracking-widest text-amber-300">
-                Joint Admissions and Matriculation Board
+                Independent UTME CBT Simulator • Platform Administration
               </div>
               <div className="text-sm sm:text-base font-black tracking-tight uppercase flex items-center gap-2">
-                <span>JAMB Central Admin & CBT Command Console</span>
+                <span>CBT Simulator Central Admin &amp; Control Console</span>
                 <span className="text-[10px] bg-red-600 text-white px-2 py-0.5 rounded font-mono font-normal">
                   Administrator
                 </span>

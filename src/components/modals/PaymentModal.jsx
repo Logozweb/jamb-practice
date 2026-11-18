@@ -129,15 +129,15 @@ export const PaymentModal = ({ isOpen, onClose, targetActionName = 'this feature
           <div className="flex items-center gap-2 mb-1.5">
             <span className="px-2.5 py-0.5 rounded-full bg-amber-400 text-slate-900 text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1 shadow-sm">
               <Sparkles className="w-3 h-3" />
-              <span>Official Clearance Facility</span>
+              <span>Practice Portal Access License</span>
             </span>
           </div>
 
           <h2 className="text-lg sm:text-xl font-black uppercase tracking-wide">
-            Candidate Examination Clearance
+            CBT Simulation Access License
           </h2>
           <p className="text-xs text-emerald-100 mt-0.5">
-            Complete administrative clearance to enable full CBT mock testing and performance tracking.
+            Activate your independent CBT practice license to enable unlimited mock exams, subject drills, and performance tracking.
           </p>
         </div>
 
@@ -148,17 +148,17 @@ export const PaymentModal = ({ isOpen, onClose, targetActionName = 'this feature
           <div className={`${isReactivation ? 'bg-amber-50 border-amber-400' : 'bg-emerald-50 border-emerald-300'} border-2 rounded-xl p-3.5 flex items-center justify-between`}>
             <div>
               <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                {isReactivation ? 'Disciplinary Concession Fee (50% Relief)' : 'Candidate Portal Clearance Fee'}
+                {isReactivation ? 'Disciplinary Concession Fee (50% Relief)' : 'CBT Simulator Practice Access Fee'}
               </div>
               <div className="flex items-baseline gap-1.5">
                 <span className="text-2xl sm:text-3xl font-black text-[#006633]">₦{feeNaira}.00</span>
                 {isReactivation ? (
                   <>
                     <span className="text-xs text-slate-500 font-semibold line-through">₦{baseFeeNaira}.00</span>
-                    <span className="text-[10px] font-bold text-amber-900 bg-amber-200 px-1.5 py-0.5 rounded">50% Board Concession</span>
+                    <span className="text-[10px] font-bold text-amber-900 bg-amber-200 px-1.5 py-0.5 rounded">50% Concession Relief</span>
                   </>
                 ) : (
-                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">Official Subsidized Rate</span>
+                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">Standard Practice Rate</span>
                 )}
               </div>
             </div>
@@ -182,11 +182,11 @@ export const PaymentModal = ({ isOpen, onClose, targetActionName = 'this feature
               <span className="text-slate-800 font-mono font-bold">{currentUser.regNumber}</span>
             </div>
             <div className="flex justify-between items-center pt-1 border-t border-slate-200">
-              <span className="text-slate-500">Clearance Status:</span>
+              <span className="text-slate-500">Simulation Access:</span>
               <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                 isReactivation ? 'bg-amber-100 text-amber-900' : 'bg-slate-200 text-slate-800'
               }`}>
-                {isReactivation ? 'Concession Granted (Clearance Due)' : 'Registration Recorded (Clearance Due)'}
+                {isReactivation ? 'Concession Granted (Access Key Due)' : 'Registration Recorded (Access Key Due)'}
               </span>
             </div>
           </div>
@@ -199,7 +199,7 @@ export const PaymentModal = ({ isOpen, onClose, targetActionName = 'this feature
             <div className="grid grid-cols-1 gap-1.5 text-xs text-slate-700">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                <span>Unlimited Full Mock CBT Simulations (180 questions with official scaled scoring)</span>
+                <span>Unlimited Full Mock CBT Simulations (180 questions with standard scaled scoring)</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
@@ -211,7 +211,7 @@ export const PaymentModal = ({ isOpen, onClose, targetActionName = 'this feature
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                <span>JAMB Central Admission Processing System (CAPS) Integration</span>
+                <span>Simulated Central Admission Processing System (CAPS)</span>
               </div>
             </div>
           </div>
@@ -265,11 +265,11 @@ export const PaymentModal = ({ isOpen, onClose, targetActionName = 'this feature
               ) : successNotice ? (
                 <>
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>Clearance Verified</span>
+                  <span>Access Activated</span>
                 </>
               ) : (
                 <>
-                  <span>{isReactivation ? `Complete Re-Activation Clearance (₦${feeNaira}.00)` : `Complete Examination Clearance (₦${feeNaira}.00)`}</span>
+                  <span>{isReactivation ? `Complete Re-Activation Clearance (₦${feeNaira}.00)` : `Activate CBT Practice Access (₦${feeNaira}.00)`}</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
@@ -278,7 +278,7 @@ export const PaymentModal = ({ isOpen, onClose, targetActionName = 'this feature
 
           {/* Admin manual approval notice */}
           <div className="text-center text-[10px] text-slate-400">
-            Note: Clearance may alternatively be verified manually by an assigned Center Administrator.
+            Note: Practice access can also be granted directly by an assigned Center Administrator.
           </div>
         </div>
 
