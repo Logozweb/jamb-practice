@@ -1084,7 +1084,7 @@ export function resolveAppeal(appealId, action, adminNotes = '') {
     db.prepare(`
       UPDATE candidates
       SET status = 'Banned',
-          disapproval_reason = 'Account permanently banned from JAMB Practice Platform for severe examination malpractice.',
+          disapproval_reason = 'Candidate access permanently restricted from CBT Simulation Platform for confirmed simulation malpractice.',
           appeal_status = 'banned',
           updated_at = ?
       WHERE id = ?

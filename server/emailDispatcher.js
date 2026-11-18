@@ -219,6 +219,7 @@ export async function dispatchEmail({
   candidateName = 'Candidate',
   otpCode = '',
   subject,
+  html: customHtml,
   smtpConfig,
   resendApiKey,
   env = {}
@@ -232,10 +233,11 @@ export async function dispatchEmail({
   const dbSettings = db.getEmailSettingsFromDb();
   const effectiveSmtp = (smtpConfig && smtpConfig.user && smtpConfig.pass) ? smtpConfig : dbSettings.smtp;
   const effectiveResendKey = resendApiKey || dbSettings.resendApiKey || env.RESEND_API_KEY || process.env.RESEND_API_KEY;
-  const effectiveSenderName = dbSettings.senderName || 'JAMB Practice Platform';
+  const effectiveSenderName = dbSettings.senderName || 'CBT Simulation Platform';
 
-  const mailSubject = subject || dbSettings.subjectLine || 'JAMB Practice Platform - Verification Security Code';
-  const html = buildEmailHtml(candidateName, otpCode);
+  const mailSubject = subject || dbSettings.subjectLine || 'CBT Simulation Platform - Verification Security Code';
+  const html = customHtml || buildEmailHtml(candidateName, otpCode);
+  const outboxCode = otpCode || (customHtml ? 'SYSTEM' : 'N/A');
 
   const googleClientId =
     env.GOOGLE_CLIENT_ID ||
@@ -299,7 +301,7 @@ export async function dispatchEmail({
       db.saveEmailOutboxLog({
         recipientEmail: cleanTo,
         candidateName,
-        otpCode,
+        otpCode: outboxCode,
         status: 'Delivered',
         provider: 'Google Gmail API',
         details: `Dispatched via Gmail API ID: ${sendData.id} (Sender: ${sender})`
@@ -340,7 +342,7 @@ export async function dispatchEmail({
         db.saveEmailOutboxLog({
           recipientEmail: cleanTo,
           candidateName,
-          otpCode,
+          otpCode: outboxCode,
           status: 'Delivered',
           provider: 'Resend',
           details: `Dispatched via Resend ID: ${resendData.id}`
@@ -385,7 +387,7 @@ export async function dispatchEmail({
       db.saveEmailOutboxLog({
         recipientEmail: cleanTo,
         candidateName,
-        otpCode,
+        otpCode: outboxCode,
         status: 'Delivered',
         provider: 'SMTP',
         details: `Dispatched via SMTP: ${info.messageId}`
@@ -401,7 +403,7 @@ export async function dispatchEmail({
       db.saveEmailOutboxLog({
         recipientEmail: cleanTo,
         candidateName,
-        otpCode,
+        otpCode: outboxCode,
         status: 'Provider Error',
         provider: 'SMTP',
         details: err.message
@@ -414,9 +416,9 @@ export async function dispatchEmail({
   db.saveEmailOutboxLog({
     recipientEmail: cleanTo,
     candidateName,
-    otpCode,
+    otpCode: outboxCode,
     status: 'Pending Setup (Saved in Database Outbox)',
-    provider: 'JAMB Central Mail Relay',
+    provider: 'CBT Central Mail Relay',
     details: 'No active Google Gmail API token, Resend API key, or SMTP credentials configured in database.'
   });
 
@@ -434,7 +436,6 @@ export async function dispatchWelcomeEmail(candidate, env = {}) {
     return { success: false, error: 'Candidate email address is invalid.' };
   }
 
-  const dbSettings = db.getEmailSettingsFromDb();
   const subject = `Welcome to Your CBT Practice Portal - ${candidate.practiceId || candidate.regNumber}`;
   const html = buildWelcomeEmailHtml(candidate);
 
@@ -443,6 +444,7 @@ export async function dispatchWelcomeEmail(candidate, env = {}) {
     to: cleanTo,
     candidateName: candidate.name,
     subject,
+    html,
     env
   }).catch(err => {
     console.warn('Welcome email dispatch warning:', err.message);
@@ -463,9 +465,132 @@ export async function dispatchPaymentReceiptEmail({ candidate, amountNaira = 50,
     to: cleanTo,
     candidateName: candidate.name,
     subject,
+    html,
     env
   }).catch(err => {
     console.warn('Payment receipt email dispatch note:', err.message);
+    return { success: false, error: err.message };
+  });
+}
+
+export function buildAppealDecisionEmailHtml({ candidate, action, notes }) {
+  const isReinstated = action === 'reinstate';
+  const isRequirePayment = action === 'require_payment';
+
+  const headerColor = isReinstated ? '#006633' : isRequirePayment ? '#d97706' : '#991b1b';
+  const badgeColor = isReinstated ? '#dcfce7' : isRequirePayment ? '#fef3c7' : '#fee2e2';
+  const badgeTextColor = isReinstated ? '#166534' : isRequirePayment ? '#92400e' : '#991b1b';
+  const badgeText = isReinstated
+    ? 'APPEAL APPROVED • FULL ACCESS RESTORED'
+    : isRequirePayment
+    ? 'CONDITIONAL RELIEF • 50% RE-ACTIVATION CONCESSION'
+    : 'APPEAL REJECTED • PERMANENT PLATFORM RESTRICTION';
+
+  const statusLabel = isReinstated
+    ? 'Reinstated (Full Access Restored)'
+    : isRequirePayment
+    ? 'Approved with Concession (₦25.00 Fee Required)'
+    : 'Permanently Restricted (Banned)';
+
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 540px; padding: 24px; border: 1px solid ${headerColor}; border-radius: 12px; margin: auto; background-color: #fafafa;">
+      <div style="background: ${headerColor}; color: white; padding: 20px; text-align: center; border-radius: 8px;">
+        <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; color: #ffc107;">Independent UTME CBT Simulator</div>
+        <h2 style="margin: 6px 0 0; font-size: 18px; text-transform: uppercase;">Disciplinary Review Determination</h2>
+        <p style="margin: 4px 0 0; font-size: 12px; color: #e5e7eb;">Candidate Simulation Integrity Board</p>
+      </div>
+
+      <div style="padding: 20px; background-color: white; border-radius: 8px; margin-top: 15px; border: 1px solid #e0e0e0;">
+        <div style="display: inline-block; background-color: ${badgeColor}; color: ${badgeTextColor}; padding: 6px 12px; border-radius: 999px; font-size: 11px; font-weight: bold; margin-bottom: 15px; letter-spacing: 0.5px;">
+          ${badgeText}
+        </div>
+
+        <p style="margin: 0 0 12px; font-size: 14px; color: #333;">
+          Dear <strong>${candidate.name || 'Candidate'}</strong>,
+        </p>
+
+        <p style="margin: 0 0 15px; font-size: 13px; color: #555; line-height: 1.5;">
+          ${isReinstated ? (
+            'The Disciplinary Review Board has examined your appeal regarding the recent navigation and full-screen compliance infractions recorded during your CBT simulation. Your explanation has been accepted, and your candidate profile has been <strong>fully reinstated with immediate effect</strong> at no charge.'
+          ) : isRequirePayment ? (
+            'The Disciplinary Review Board has reviewed your explanation. While the navigation infractions were confirmed, you have been granted a <strong>50% Concession Relief</strong> as a first-time dispensation. You may reactivate your candidate portal by paying a reduced re-activation fee of <strong>₦25.00</strong> (regular access fee: ₦50.00).'
+          ) : (
+            'The Disciplinary Review Board has reviewed your appeal and confirmed deliberate and repeated non-compliance with examination environment protocols. Consequently, your candidate profile has been <strong>permanently restricted</strong> from accessing full mock CBT simulations.'
+          )}
+        </p>
+
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin: 15px 0;">
+          <table style="width: 100%; font-size: 12px; color: #333; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 4px 0; color: #666;">Candidate Practice ID:</td>
+              <td style="padding: 4px 0; font-weight: bold; font-family: monospace;">${candidate.practiceId || 'SIM-2026-7841'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 0; color: #666;">Registration Number:</td>
+              <td style="padding: 4px 0; font-weight: bold; font-family: monospace;">${candidate.regNumber}</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 0; color: #666;">Determination:</td>
+              <td style="padding: 4px 0; font-weight: bold; color: ${headerColor};">${statusLabel}</td>
+            </tr>
+            ${notes ? `
+            <tr>
+              <td style="padding: 6px 0 2px 0; color: #666; vertical-align: top;">Reviewer Notes:</td>
+              <td style="padding: 6px 0 2px 0; font-style: italic; color: #475569;">"${notes}"</td>
+            </tr>
+            ` : ''}
+          </table>
+        </div>
+
+        <div style="margin: 15px 0; padding: 12px; background-color: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+          <strong style="color: #334155; font-size: 12px; display: block; margin-bottom: 4px;">Next Action Required:</strong>
+          <p style="margin: 0; font-size: 12px; color: #475569; line-height: 1.5;">
+            ${isReinstated ? (
+              'Log in to your candidate dashboard using your Practice ID or email to immediately resume practice and full-length timed CBT simulation tests.'
+            ) : isRequirePayment ? (
+              'Log in to your candidate dashboard and follow the prompt to complete the concession payment of <strong>₦25.00</strong> to instantly restore your full simulation privileges.'
+            ) : (
+              'No further action is available for this profile. For general inquiries, you may reach out to support at hello@pauladisa.com.'
+            )}
+          </p>
+        </div>
+
+        <p style="margin: 15px 0 0; font-size: 11px; color: #64748b; line-height: 1.4;">
+          Remember to always maintain uninterrupted full-screen operation during CBT simulations to mirror official examination hall standards.
+        </p>
+      </div>
+
+      <div style="text-align: center; margin-top: 16px; font-size: 11px; color: #888; line-height: 1.4;">
+        Independent UTME CBT Simulator • Disciplinary Review Division<br/>
+        This platform is an independent educational tool and is not affiliated with the Joint Admissions and Matriculation Board (JAMB).
+      </div>
+    </div>
+  `;
+}
+
+export async function dispatchAppealDecisionEmail({ candidate, action, notes = '', env = {} }) {
+  const cleanTo = (candidate?.email || '').trim().toLowerCase();
+  if (!cleanTo || !cleanTo.includes('@')) {
+    return { success: false, error: 'Candidate email address is invalid.' };
+  }
+
+  const subjectMap = {
+    reinstate: `Appeal Reinstatement Notice: Full Access Restored - ${candidate.practiceId || candidate.regNumber}`,
+    require_payment: `Appeal Decision Notice: 50% Concession Relief Granted (₦25.00) - ${candidate.practiceId || candidate.regNumber}`,
+    ban: `Appeal Review Determination: Access Restricted - ${candidate.practiceId || candidate.regNumber}`
+  };
+
+  const subject = subjectMap[action] || `Disciplinary Appeal Determination - ${candidate.practiceId || candidate.regNumber}`;
+  const html = buildAppealDecisionEmailHtml({ candidate, action, notes });
+
+  return dispatchEmail({
+    to: cleanTo,
+    candidateName: candidate.name,
+    subject,
+    html,
+    env
+  }).catch(err => {
+    console.warn('Appeal decision email dispatch note:', err.message);
     return { success: false, error: err.message };
   });
 }

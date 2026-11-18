@@ -1,5 +1,5 @@
 import * as db from './database.js';
-import { dispatchEmail, dispatchWelcomeEmail, dispatchPaymentReceiptEmail } from './emailDispatcher.js';
+import { dispatchEmail, dispatchWelcomeEmail, dispatchPaymentReceiptEmail, dispatchAppealDecisionEmail } from './emailDispatcher.js';
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -437,6 +437,16 @@ export function databaseApiPlugin(env = {}) {
               return sendJson(res, 400, { success: false, error: 'Invalid appeal resolution action requested.' });
             }
             const result = db.resolveAppeal(appealId, action, adminNotes);
+            if (result.success && result.candidate && result.candidate.email) {
+              dispatchAppealDecisionEmail({
+                candidate: result.candidate,
+                action,
+                notes: adminNotes,
+                env
+              }).catch(err => {
+                console.warn('Asynchronous appeal decision email dispatch note:', err.message);
+              });
+            }
             return sendJson(res, result.success ? 200 : 400, result);
           }
 

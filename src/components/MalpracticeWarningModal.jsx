@@ -73,7 +73,7 @@ export const MalpracticeWarningModal = () => {
 
             <div className="text-xs text-slate-700 space-y-2 leading-relaxed">
               <p>
-                <strong>Administrative Determination:</strong> In accordance with official CBT regulations, this session has concluded and your responses have been recorded with an aggregate score of 0. Your candidate profile has been placed on <strong>Administrative Hold</strong>.
+                <strong>Administrative Determination:</strong> In accordance with standard CBT simulation regulations, this session has concluded and your responses have been recorded with an aggregate score of 0. Your candidate profile has been placed on <strong>Administrative Hold</strong>.
               </p>
               <p>
                 <strong>Next Steps:</strong> Further examination sessions remain restricted pending administrative review. You may review your session record below and submit an official statement of explanation through the Candidate Appeals channel on your dashboard.
@@ -122,7 +122,7 @@ export const MalpracticeWarningModal = () => {
 
         <div className="p-6 space-y-4">
           <p className="text-xs text-slate-700 leading-relaxed font-medium">
-            An unexpected window navigation, key sequence (such as <strong>ESCAPE</strong>), or full-screen exit was recorded. Official CBT testing regulations mandate uninterrupted full-screen operation throughout the examination session.
+            An unexpected window navigation, key sequence (such as <strong>ESCAPE</strong>), or full-screen exit was recorded. Standard CBT testing protocols mandate uninterrupted full-screen operation throughout the simulation session.
           </p>
 
           <div className={`p-3.5 rounded-xl border text-xs font-bold ${

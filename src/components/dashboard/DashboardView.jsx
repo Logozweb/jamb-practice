@@ -373,7 +373,7 @@ export const DashboardView = () => {
                 </div>
                 <p className="text-xs text-rose-900 mt-1 max-w-xl font-medium leading-relaxed">
                   {currentUser.status === 'Banned' ? (
-                    <span>This candidate profile has been permanently restricted from the JAMB Practice Platform following formal administrative and disciplinary determination.</span>
+                    <span>This candidate profile has been permanently restricted from the CBT Simulation Platform following formal administrative and disciplinary determination.</span>
                   ) : currentUser.appealStatus === 'pending' ? (
                     <span>
                       Your official statement of explanation was received on <strong>{currentUser.appealDate ? new Date(currentUser.appealDate).toLocaleDateString() : 'recent date'}</strong> and is currently assigned to the Board for disciplinary review.

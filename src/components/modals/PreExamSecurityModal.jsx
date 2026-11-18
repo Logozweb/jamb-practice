@@ -23,7 +23,7 @@ export const PreExamSecurityModal = () => {
   const timeLimit = isStandard ? '120 Minutes (2 Hours)' : '45 Minutes';
 
   const modeTitle = isFullMock
-    ? 'Official Full Mock Examination'
+    ? 'Full Mock Examination Simulator'
     : isPractice && isStandard
     ? 'Full Practice & Study Mode'
     : !isPractice && !isStandard
@@ -71,7 +71,7 @@ export const PreExamSecurityModal = () => {
             Pre-Examination Environment Guidelines
           </h2>
           <p className="text-xs text-emerald-100 font-medium mt-1">
-            Official Computer Based Test (CBT) Proctored Environment
+            Computer Based Test (CBT) Simulation Environment
           </p>
         </div>
 
@@ -81,7 +81,7 @@ export const PreExamSecurityModal = () => {
           <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
               <span className="text-slate-600 font-medium">Candidate:</span>
-              <strong className="text-slate-900 uppercase font-black">{currentUser?.name || 'JAMB CANDIDATE'}</strong>
+              <strong className="text-slate-900 uppercase font-black">{currentUser?.name || 'CBT CANDIDATE'}</strong>
             </div>
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
               <span className="text-slate-600 font-medium">Exam Type:</span>
@@ -96,7 +96,7 @@ export const PreExamSecurityModal = () => {
             {isFullMock && (
               <div className="text-[11px] text-emerald-800 bg-emerald-100/70 p-2 rounded border border-emerald-300 font-semibold flex items-center gap-1.5">
                 <span>🌐</span>
-                <span>Authentic past questions will be fetched from official question servers into your secured session.</span>
+                <span>Authentic past questions will be loaded into your secured simulation session.</span>
               </div>
             )}
           </div>
@@ -105,7 +105,7 @@ export const PreExamSecurityModal = () => {
           <div className="space-y-3">
             <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
               <Lock className="w-4 h-4 text-emerald-800" />
-              <span>Mandatory Examination Conduct &amp; Full-Screen Regulations:</span>
+              <span>Mandatory Simulation Conduct &amp; Full-Screen Regulations:</span>
             </h3>
 
             <div className="space-y-2.5 text-xs text-slate-700">
