@@ -29,7 +29,8 @@ import {
   Lock,
   Info,
   CreditCard,
-  Send
+  Send,
+  X
 } from 'lucide-react';
 
 export const DashboardView = () => {
@@ -55,6 +56,7 @@ export const DashboardView = () => {
   const [isAppealModalOpen, setIsAppealModalOpen] = useState(false);
   const [paymentTargetName, setPaymentTargetName] = useState('all portal services');
   const [mobileActiveMode, setMobileActiveMode] = useState('simulation_standard');
+  const [noticeModal, setNoticeModal] = useState(null); // { title, message, actionLabel }
 
   if (!currentUser) return null;
 
@@ -78,7 +80,11 @@ export const DashboardView = () => {
     }
     const isFullMock = mode === 'simulation' && length === 'standard';
     if (!isFullMock && !examSettings?.allowStudentPracticeMode) {
-      alert('Practice Mode Disabled: Practice & Test examination modes are currently disabled by the administrator under CBT Rules. Candidates may only sit for the Full Mock Examination.');
+      setNoticeModal({
+        title: 'CBT Schedule Advisory',
+        message: 'Practice and self-paced drill modes are currently restricted by the Center Administrator under official CBT testing rules. Candidates are instructed to sit for the unified Full Mock Examination.',
+        actionLabel: 'Understood'
+      });
       return;
     }
     setExamMode(mode);
@@ -142,7 +148,11 @@ export const DashboardView = () => {
       }
       setPhase('result');
     } else {
-      alert("You have not taken any mock examination yet. Click 'Full Mock' to start!");
+      setNoticeModal({
+        title: 'No Examination Records Available',
+        message: 'No completed mock examination records were found for this registration number. Please complete a Full Mock Examination or Sprint Test to view your score breakdown and performance slip.',
+        actionLabel: 'Return to Dashboard'
+      });
     }
   };
 
@@ -216,92 +226,6 @@ export const DashboardView = () => {
 
       {/* Main Container */}
       <main className="max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6 flex-1">
-        {/* Candidate Suspended Notice if Suspended for Malpractice */}
-        {(status === 'Suspended' || currentUser.malpracticeBlocked) && (
-          <div className="bg-red-50 border-2 border-red-500 rounded-2xl p-4 sm:p-5 shadow-md flex items-start gap-4 animate-in fade-in">
-            <div className="w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center flex-shrink-0 shadow">
-              <ShieldAlert className="w-6 h-6 animate-bounce" />
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase tracking-wider bg-red-200 text-red-900 px-2.5 py-0.5 rounded-full border border-red-300">
-                  Account Suspended
-                </span>
-                <span className="text-xs font-black text-red-950 uppercase">
-                  Anti-Malpractice Security Protocol
-                </span>
-              </div>
-              <h3 className="text-sm sm:text-base font-black text-red-950 mt-1">
-                Candidate Barred: Multiple Examination Navigation Violations
-              </h3>
-              <p className="text-xs text-red-900 mt-1 leading-relaxed">
-                Your examination session was terminated and your account locked due to repeated tab switching, window minimization, or exiting fullscreen mode during an active examination.
-              </p>
-              <div className="mt-2 text-[11px] font-bold text-red-900 flex items-center gap-1.5 bg-red-100/90 p-2.5 rounded-lg border border-red-300">
-                <Lock className="w-3.5 h-3.5 text-red-700 flex-shrink-0" />
-                <span>You are strictly barred from sitting for any examination until a Platform Administrator reviews your case and clears your account.</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Candidate Pending Approval Notice if Pending */}
-        {status === 'Pending' && (
-          <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 sm:p-5 shadow-sm flex items-start gap-4 animate-in fade-in">
-            <div className="w-10 h-10 rounded-full bg-amber-500 text-white flex items-center justify-center flex-shrink-0 shadow">
-              <Clock className="w-5 h-5 animate-pulse" />
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-200 text-amber-900 px-2 py-0.5 rounded">
-                  Registration Awaiting Clearance
-                </span>
-                <span className="text-xs font-black text-amber-950 uppercase">
-                  Account Status: Pending Approval
-                </span>
-              </div>
-              <h3 className="text-sm sm:text-base font-black text-amber-950 mt-1">
-                Your Account is Awaiting Platform Administrator Approval
-              </h3>
-              <p className="text-xs text-amber-900 mt-1">
-                Your registration has been submitted and your email address is verified. All examination features, test simulations, and candidate e-slips remain locked until a platform administrator approves your registration.
-              </p>
-              <div className="mt-2 text-[11px] font-semibold text-amber-900 flex items-center gap-1.5 bg-amber-100/80 p-2 rounded-lg border border-amber-300">
-                <Lock className="w-3.5 h-3.5 text-amber-700 flex-shrink-0" />
-                <span>All test facilities, slips, and admission services are currently locked.</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Candidate Disapproval Notice if Disapproved */}
-        {status === 'Disapproved' && (
-          <div className="bg-rose-50 border-2 border-rose-300 rounded-2xl p-4 sm:p-5 shadow-sm flex items-start gap-4 animate-in fade-in">
-            <div className="w-10 h-10 rounded-full bg-rose-600 text-white flex items-center justify-center flex-shrink-0 shadow">
-              <ShieldAlert className="w-5 h-5" />
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider bg-rose-200 text-rose-900 px-2 py-0.5 rounded">
-                  Registration Flagged
-                </span>
-                <span className="text-xs font-black text-rose-900 uppercase">
-                  Platform Administrator Action
-                </span>
-              </div>
-              <h3 className="text-sm sm:text-base font-black text-rose-950 mt-1">
-                Your Candidate Registration Has Been Disapproved
-              </h3>
-              <p className="text-xs text-rose-800 mt-1">
-                Reason: <strong className="font-semibold">{currentUser.disapprovalReason || 'Passport photograph or candidate bio-data verification failed.'}</strong>
-              </p>
-              <p className="text-[11px] text-rose-700 mt-1.5">
-                Action Required: Please update your passport photo below, or request your CBT centre administrator to re-verify your biometric record.
-              </p>
-            </div>
-          </div>
-        )}
-
         {/* Candidate Profile Hero Card */}
         <div className="bg-white rounded-2xl border border-slate-300 shadow-sm p-5 sm:p-6 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
@@ -328,7 +252,7 @@ export const DashboardView = () => {
                 className={`absolute -bottom-1 -right-1 rounded-full p-1 border-2 border-white shadow ${
                   status === 'Approved' ? 'bg-green-600' : (status === 'Suspended' || currentUser.malpracticeBlocked) ? 'bg-red-600' : status === 'Pending' ? 'bg-amber-500' : 'bg-rose-600'
                 }`}
-                title={`Biometric Status: ${status === 'Suspended' || currentUser.malpracticeBlocked ? 'Suspended (Malpractice)' : status}`}
+                title={`Biometric Status: ${status === 'Suspended' || currentUser.malpracticeBlocked ? 'Suspended (Integrity Review)' : status}`}
               >
                 {status === 'Approved' ? (
                   <ShieldCheck className="w-3.5 h-3.5 text-white" />
@@ -357,19 +281,23 @@ export const DashboardView = () => {
                 </div>
 
                 {/* Candidate Approval Status Pill */}
-                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase border ${
+                <span className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider border shadow-sm ${
                   (status === 'Suspended' || currentUser.malpracticeBlocked)
-                    ? 'bg-red-100 text-red-900 border-red-300'
+                    ? 'bg-rose-100 text-rose-950 border-rose-300'
                     : status === 'Approved'
-                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                    ? 'bg-emerald-100 text-emerald-950 border-emerald-300'
                     : status === 'Pending'
-                    ? 'bg-amber-50 text-amber-800 border-amber-300'
-                    : 'bg-rose-50 text-rose-800 border-rose-300'
+                    ? (currentUser.appealStatus === 'require_payment' ? 'bg-amber-100 text-amber-950 border-amber-300' : 'bg-slate-100 text-slate-900 border-slate-300')
+                    : 'bg-rose-50 text-rose-900 border-rose-300'
                 }`}>
-                  {(status === 'Suspended' || currentUser.malpracticeBlocked) && '🚨 Suspended (Malpractice)'}
-                  {status === 'Approved' && !currentUser.malpracticeBlocked && '✓ Approved to Sit'}
-                  {status === 'Pending' && !currentUser.malpracticeBlocked && '⏳ Approval Pending'}
-                  {status === 'Disapproved' && !currentUser.malpracticeBlocked && '✕ Disapproved'}
+                  {(status === 'Suspended' || currentUser.malpracticeBlocked) && (
+                    currentUser.status === 'Banned' ? 'Profile Restricted (Banned)' : 'Session Suspended (Integrity Hold)'
+                  )}
+                  {status === 'Approved' && !currentUser.malpracticeBlocked && 'Clearance Verified (Approved)'}
+                  {status === 'Pending' && !currentUser.malpracticeBlocked && (
+                    currentUser.appealStatus === 'require_payment' ? 'Concession Approved (Clearance Due)' : 'Registration Recorded (Clearance Due)'
+                  )}
+                  {status === 'Disapproved' && !currentUser.malpracticeBlocked && 'Biometric Review Required'}
                 </span>
               </div>
 
@@ -416,37 +344,41 @@ export const DashboardView = () => {
           </div>
         </div>
 
-        {/* Malpractice Sanction Banner - Appeals Path Only (Payment Disabled) */}
-        {isMalpracticeSanctioned && (
-          <div className="bg-gradient-to-r from-rose-500/15 via-red-500/20 to-rose-500/15 border-2 border-rose-500 rounded-2xl p-4 sm:p-5 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in">
+        {/* ========================================================= */}
+        {/* Unified Official Examination Clearance & Status Center    */}
+        {/* ========================================================= */}
+        {isMalpracticeSanctioned ? (
+          <div className="bg-gradient-to-r from-rose-500/10 via-red-500/15 to-rose-500/10 border-2 border-rose-500 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in">
             <div className="flex items-start sm:items-center gap-3.5">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-rose-600 to-red-700 text-white flex items-center justify-center flex-shrink-0 shadow-md">
-                <ShieldAlert className="w-6 h-6 animate-pulse" />
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-rose-700 to-red-800 text-white flex items-center justify-center flex-shrink-0 shadow-md">
+                <ShieldAlert className="w-6 h-6" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-sm sm:text-base font-black text-rose-950 uppercase tracking-tight">
-                    Account Status: {currentUser.status === 'Banned' ? 'Permanently Banned' : 'Suspended (Exam Malpractice / Disciplinary Sanction)'}
+                    {currentUser.status === 'Banned'
+                      ? 'Candidate Profile Restricted (Disciplinary Board Action)'
+                      : currentUser.appealStatus === 'pending'
+                      ? 'Official Representation Under Administrative Review'
+                      : 'Session Suspended: Security Integrity Protocol'}
                   </h2>
-                  <span className="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-black uppercase tracking-wider">
-                    {currentUser.status === 'Banned' ? 'Banned' : 'Sanction Active'}
+                  <span className="px-2.5 py-0.5 rounded-full bg-rose-700 text-white text-[10px] font-black uppercase tracking-wider">
+                    {currentUser.status === 'Banned' ? 'Permanent Restriction' : currentUser.appealStatus === 'pending' ? 'Review In Progress' : 'Action Required'}
                   </span>
                 </div>
                 <p className="text-xs text-rose-900 mt-1 max-w-xl font-medium leading-relaxed">
                   {currentUser.status === 'Banned' ? (
-                    <span>This candidate profile has been permanently banned from the JAMB Practice Platform following administrative review.</span>
+                    <span>This candidate profile has been permanently restricted from the JAMB Practice Platform following formal administrative and disciplinary determination.</span>
+                  ) : currentUser.appealStatus === 'pending' ? (
+                    <span>
+                      Your official statement of explanation was received on <strong>{currentUser.appealDate ? new Date(currentUser.appealDate).toLocaleDateString() : 'recent date'}</strong> and is currently assigned to the Board for disciplinary review.
+                    </span>
                   ) : (
                     <span>
-                      Examination access has been suspended due to an infraction. <strong>Paystack payment cannot unlock a sanctioned account.</strong> You must submit a formal appeal to the Board Administrator.
+                      Active session terminated due to consecutive navigation infractions (window minimization, tab alternation, or full-screen exit). Standard portal fees cannot clear an integrity hold. You must submit an official statement to the Examination Administrator.
                     </span>
                   )}
                 </p>
-                {currentUser.appealStatus === 'pending' && (
-                  <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-100 border border-amber-300 text-[11px] font-bold text-amber-900">
-                    <Clock className="w-3.5 h-3.5 text-amber-600" />
-                    <span>Appeal Submitted on {currentUser.appealDate ? new Date(currentUser.appealDate).toLocaleDateString() : 'recent date'} — Awaiting Board Review</span>
-                  </div>
-                )}
               </div>
             </div>
 
@@ -454,60 +386,105 @@ export const DashboardView = () => {
               <button
                 type="button"
                 onClick={() => setIsAppealModalOpen(true)}
-                className="w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-rose-700 to-red-700 hover:from-rose-800 hover:to-red-800 text-white rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 flex-shrink-0"
+                className="w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-rose-800 to-red-800 hover:from-rose-900 hover:to-red-900 text-white rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider shadow hover:shadow-md transition-all flex items-center justify-center gap-2 flex-shrink-0"
               >
-                <Send className="w-4 h-4" />
-                <span>{currentUser.appealStatus === 'pending' ? 'View Submitted Appeal' : 'Appeal Malpractice Sanction'}</span>
+                <Send className="w-4 h-4 text-amber-300" />
+                <span>{currentUser.appealStatus === 'pending' ? 'View Submitted Representation' : 'Submit Statement of Appeal'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             )}
           </div>
-        )}
-
-        {/* Account Pending Approval Banner - Direct Paystack Unlock Option (Normal Registration vs Appeal Re-Activation) */}
-        {status === 'Pending' && !isMalpracticeSanctioned && (
-          <div className="bg-gradient-to-r from-amber-500/10 via-emerald-500/15 to-amber-500/10 border-2 border-amber-400 rounded-2xl p-4 sm:p-5 shadow-md flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in">
+        ) : currentUser.appealStatus === 'require_payment' ? (
+          <div className="bg-gradient-to-r from-amber-500/10 via-emerald-500/15 to-amber-500/10 border-2 border-amber-500 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in">
             <div className="flex items-start sm:items-center gap-3.5">
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 to-amber-500 text-slate-900 flex items-center justify-center flex-shrink-0 shadow-md">
-                <CreditCard className="w-6 h-6" />
+              <div className="w-11 h-11 rounded-xl bg-amber-600 text-white flex items-center justify-center flex-shrink-0 shadow-md">
+                <CreditCard className="w-6 h-6 text-white" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-sm sm:text-base font-black text-slate-900 uppercase">
-                    {currentUser.appealStatus === 'require_payment'
-                      ? 'Account Status: Conditional Reactivation Approved'
-                      : 'Account Status: Pending Portal Activation'}
+                    Disciplinary Review Determination: Concession Approved
                   </h2>
-                  <span className={`px-2 py-0.5 rounded-full text-white text-[10px] font-black uppercase tracking-wider ${
-                    currentUser.appealStatus === 'require_payment' ? 'bg-amber-600' : 'bg-emerald-500'
-                  }`}>
-                    {currentUser.appealStatus === 'require_payment' ? 'Half-Price Relief (50%)' : 'Slip & Choices Unlocked'}
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-600 text-white text-[10px] font-black uppercase tracking-wider">
+                    50% Re-Activation Concession
                   </span>
                 </div>
-                <p className="text-xs text-slate-600 mt-0.5 max-w-xl">
-                  {currentUser.appealStatus === 'require_payment' ? (
-                    <span>
-                      The Administrator reviewed your appeal and granted <strong>50% fee relief</strong>. Pay <strong>₦25</strong> (half the standard ₦50 fee) to reactivate and unlock full CBT examination practice.
-                    </span>
-                  ) : (
-                    <span>
-                      Your <strong>Registration Slip</strong> and <strong>Choices & O'Level</strong> are accessible now. Unlock CBT Mock Simulations and JAMB CAPS tracking instantly by paying the <strong>₦50</strong> activation fee via Paystack.
-                    </span>
-                  )}
+                <p className="text-xs text-slate-700 mt-1 max-w-xl leading-relaxed">
+                  The Examination Administrator reviewed your representation and granted conditional re-activation. Complete the 50% concession clearance fee of <strong>₦25.00</strong> to restore full CBT examination testing access.
                 </p>
               </div>
             </div>
             <button
               type="button"
-              onClick={() => triggerPaymentPrompt(currentUser.appealStatus === 'require_payment' ? 'Portal Re-Activation' : 'all portal features')}
-              className="w-full sm:w-auto px-5 py-2.5 bg-[#006633] hover:bg-[#004d25] text-white rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 flex-shrink-0"
+              onClick={() => triggerPaymentPrompt('Portal Re-Activation Clearance')}
+              className="w-full sm:w-auto px-5 py-2.5 bg-[#006633] hover:bg-[#004d25] text-white rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider shadow hover:shadow-md transition-all flex items-center justify-center gap-2 flex-shrink-0"
             >
               <CreditCard className="w-4 h-4 text-amber-300" />
-              <span>{currentUser.appealStatus === 'require_payment' ? 'Reactivate (Pay ₦25)' : 'Unlock Now (Pay ₦50)'}</span>
+              <span>Complete Re-Activation Clearance (₦25.00)</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
-        )}
+        ) : status === 'Pending' ? (
+          <div className="bg-gradient-to-r from-emerald-500/10 via-slate-500/10 to-emerald-500/10 border-2 border-emerald-600 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in">
+            <div className="flex items-start sm:items-center gap-3.5">
+              <div className="w-11 h-11 rounded-xl bg-[#006633] text-white flex items-center justify-center flex-shrink-0 shadow-md">
+                <ShieldCheck className="w-6 h-6 text-amber-300" />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-sm sm:text-base font-black text-slate-900 uppercase">
+                    Candidate Profile Registered — Examination Clearance Due
+                  </h2>
+                  <span className="px-2.5 py-0.5 rounded-full bg-[#006633] text-white text-[10px] font-black uppercase tracking-wider">
+                    Registration Verified
+                  </span>
+                </div>
+                <p className="text-xs text-slate-700 mt-1 max-w-xl leading-relaxed">
+                  Your candidate bio-data, 4-subject combination, and examination center are verified. Registration Slips and Subject Combinations are available. To enable unified timed CBT Mock Examinations and CAPS processing, complete standard candidate clearance (<strong>₦50.00</strong>).
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => triggerPaymentPrompt('Candidate Examination Clearance')}
+              className="w-full sm:w-auto px-5 py-2.5 bg-[#006633] hover:bg-[#004d25] text-white rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider shadow hover:shadow-md transition-all flex items-center justify-center gap-2 flex-shrink-0"
+            >
+              <CreditCard className="w-4 h-4 text-amber-300" />
+              <span>Complete Examination Clearance (₦50.00)</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        ) : status === 'Disapproved' ? (
+          <div className="bg-rose-50 border-2 border-rose-300 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in">
+            <div className="flex items-start sm:items-center gap-3.5">
+              <div className="w-11 h-11 rounded-xl bg-rose-700 text-white flex items-center justify-center flex-shrink-0 shadow-md">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-sm sm:text-base font-black text-rose-950 uppercase">
+                    Biometric Verification Notice: Correction Required
+                  </h2>
+                  <span className="px-2.5 py-0.5 rounded-full bg-rose-200 text-rose-900 text-[10px] font-black uppercase tracking-wider border border-rose-300">
+                    Action Required
+                  </span>
+                </div>
+                <p className="text-xs text-rose-900 mt-1 max-w-xl leading-relaxed">
+                  Administrative verification noted: <strong>{currentUser.disapprovalReason || 'Candidate passport photograph resolution or biometric verification requires update.'}</strong> Please upload a clearer passport photograph below.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full sm:w-auto px-5 py-2.5 bg-rose-700 hover:bg-rose-800 text-white rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider shadow hover:shadow-md transition-all flex items-center justify-center gap-2 flex-shrink-0"
+            >
+              <Upload className="w-4 h-4" />
+              <span>Update Passport Photo</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        ) : null}
 
         {/* Primary Action Hero: 4 Examination & Practice Modes */}
         <div className="bg-gradient-to-r from-[#004d25] to-[#006633] rounded-2xl text-white p-6 sm:p-8 shadow-xl relative overflow-hidden flex flex-col gap-6 border-2 border-amber-400">
@@ -626,21 +603,28 @@ export const DashboardView = () => {
                 <button
                   type="button"
                   onClick={() => handleStartExamMode('simulation', 'standard')}
-                  disabled={status !== 'Approved'}
                   className={`w-full py-2.5 px-3 rounded-lg font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
                     status !== 'Approved'
-                      ? 'bg-slate-300 text-slate-600 cursor-not-allowed'
+                      ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300'
                       : 'bg-amber-400 hover:bg-amber-300 text-slate-950 shadow hover:shadow-md active:scale-95'
                   }`}
                 >
                   {status !== 'Approved' ? (
                     <>
                       <Lock className="w-3.5 h-3.5 text-slate-600" />
-                      <span>{(status === 'Suspended' || currentUser.malpracticeBlocked) ? 'Barred (Malpractice)' : status === 'Pending' ? 'Approval Pending' : 'Disapproved'}</span>
+                      <span>
+                        {isMalpracticeSanctioned
+                          ? 'Access Restricted — View Status'
+                          : currentUser.appealStatus === 'require_payment'
+                          ? 'Clearance Due (₦25.00)'
+                          : status === 'Pending'
+                          ? 'Clearance Due (₦50.00)'
+                          : 'Correction Required'}
+                      </span>
                     </>
                   ) : (
                     <>
-                      <span>Sit Full Mock</span>
+                      <span>Commence Full Mock Exam</span>
                       <ArrowRight className="w-3.5 h-3.5 stroke-[3]" />
                     </>
                   )}
@@ -651,7 +635,7 @@ export const DashboardView = () => {
             {/* Mode 2: Practice & Study Mode (180 Qs) */}
             <div className={`rounded-xl p-4 sm:p-5 flex-col justify-between border transition-all ${
               !examSettings?.allowStudentPracticeMode || status !== 'Approved'
-                ? 'bg-white/80 border-slate-300 opacity-75'
+                ? 'bg-white/80 border-slate-300 opacity-90'
                 : 'bg-white text-slate-900 border-white hover:shadow-xl'
             } ${mobileActiveMode === 'practice_standard' ? 'flex' : 'hidden md:flex'}`}>
               <div className="space-y-2">
@@ -660,7 +644,7 @@ export const DashboardView = () => {
                     Study Mode
                   </span>
                   <span className="text-[10px] font-bold text-slate-500">
-                    Not Logged
+                    Self-Paced
                   </span>
                 </div>
                 <div>
@@ -680,29 +664,33 @@ export const DashboardView = () => {
                 <button
                   type="button"
                   onClick={() => handleStartExamMode('practice', 'standard')}
-                  disabled={status !== 'Approved' || !examSettings?.allowStudentPracticeMode}
                   className={`w-full py-2.5 px-3 rounded-lg font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
                     status !== 'Approved' || !examSettings?.allowStudentPracticeMode
-                      ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                      ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300'
                       : 'bg-blue-600 hover:bg-blue-700 text-white shadow hover:shadow-md active:scale-95'
                   }`}
                 >
-                  {status !== 'Approved' || !examSettings?.allowStudentPracticeMode ? (
+                  {status !== 'Approved' ? (
+                    <>
+                      <Lock className="w-3.5 h-3.5 text-slate-600" />
+                      <span>
+                        {isMalpracticeSanctioned
+                          ? 'Access Restricted — View Status'
+                          : currentUser.appealStatus === 'require_payment'
+                          ? 'Clearance Due (₦25.00)'
+                          : status === 'Pending'
+                          ? 'Clearance Due (₦50.00)'
+                          : 'Correction Required'}
+                      </span>
+                    </>
+                  ) : !examSettings?.allowStudentPracticeMode ? (
                     <>
                       <Lock className="w-3.5 h-3.5 text-slate-500" />
-                      <span>
-                        {(status === 'Suspended' || currentUser.malpracticeBlocked)
-                          ? 'Barred (Malpractice)'
-                          : !examSettings?.allowStudentPracticeMode
-                          ? 'Disabled by Admin'
-                          : status === 'Pending'
-                          ? 'Approval Pending'
-                          : 'Disapproved'}
-                      </span>
+                      <span>Scheduled by Center Administrator</span>
                     </>
                   ) : (
                     <>
-                      <span>Start Full Practice</span>
+                      <span>Launch Full Practice</span>
                       <ArrowRight className="w-3.5 h-3.5 stroke-[3]" />
                     </>
                   )}
@@ -713,7 +701,7 @@ export const DashboardView = () => {
             {/* Mode 3: Quick Sprint Test (45 Qs - Timed Test) */}
             <div className={`rounded-xl p-4 sm:p-5 flex-col justify-between border transition-all ${
               !examSettings?.allowStudentPracticeMode || status !== 'Approved'
-                ? 'bg-white/80 border-slate-300 opacity-75'
+                ? 'bg-white/80 border-slate-300 opacity-90'
                 : 'bg-white text-slate-900 border-white hover:shadow-xl'
             } ${mobileActiveMode === 'simulation_quick' ? 'flex' : 'hidden md:flex'}`}>
               <div className="space-y-2">
@@ -722,7 +710,7 @@ export const DashboardView = () => {
                     Sprint Drill
                   </span>
                   <span className="text-[10px] font-bold text-slate-500">
-                    Not Logged
+                    Timed Drill
                   </span>
                 </div>
                 <div>
@@ -742,29 +730,33 @@ export const DashboardView = () => {
                 <button
                   type="button"
                   onClick={() => handleStartExamMode('simulation', 'quick')}
-                  disabled={status !== 'Approved' || !examSettings?.allowStudentPracticeMode}
                   className={`w-full py-2.5 px-3 rounded-lg font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
                     status !== 'Approved' || !examSettings?.allowStudentPracticeMode
-                      ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                      ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300'
                       : 'bg-emerald-700 hover:bg-emerald-800 text-white shadow hover:shadow-md active:scale-95'
                   }`}
                 >
-                  {status !== 'Approved' || !examSettings?.allowStudentPracticeMode ? (
+                  {status !== 'Approved' ? (
+                    <>
+                      <Lock className="w-3.5 h-3.5 text-slate-600" />
+                      <span>
+                        {isMalpracticeSanctioned
+                          ? 'Access Restricted — View Status'
+                          : currentUser.appealStatus === 'require_payment'
+                          ? 'Clearance Due (₦25.00)'
+                          : status === 'Pending'
+                          ? 'Clearance Due (₦50.00)'
+                          : 'Correction Required'}
+                      </span>
+                    </>
+                  ) : !examSettings?.allowStudentPracticeMode ? (
                     <>
                       <Lock className="w-3.5 h-3.5 text-slate-500" />
-                      <span>
-                        {(status === 'Suspended' || currentUser.malpracticeBlocked)
-                          ? 'Barred (Malpractice)'
-                          : !examSettings?.allowStudentPracticeMode
-                          ? 'Disabled by Admin'
-                          : status === 'Pending'
-                          ? 'Approval Pending'
-                          : 'Disapproved'}
-                      </span>
+                      <span>Scheduled by Center Administrator</span>
                     </>
                   ) : (
                     <>
-                      <span>Start Quick Test</span>
+                      <span>Begin Timed Sprint (45 Mins)</span>
                       <ArrowRight className="w-3.5 h-3.5 stroke-[3]" />
                     </>
                   )}
@@ -775,7 +767,7 @@ export const DashboardView = () => {
             {/* Mode 4: Quick Sprint Practice (45 Qs - Study Drill) */}
             <div className={`rounded-xl p-4 sm:p-5 flex-col justify-between border transition-all ${
               !examSettings?.allowStudentPracticeMode || status !== 'Approved'
-                ? 'bg-white/80 border-slate-300 opacity-75'
+                ? 'bg-white/80 border-slate-300 opacity-90'
                 : 'bg-white text-slate-900 border-white hover:shadow-xl'
             } ${mobileActiveMode === 'practice_quick' ? 'flex' : 'hidden md:flex'}`}>
               <div className="space-y-2">
@@ -784,7 +776,7 @@ export const DashboardView = () => {
                     Rapid Revision
                   </span>
                   <span className="text-[10px] font-bold text-slate-500">
-                    Not Logged
+                    Self-Paced
                   </span>
                 </div>
                 <div>
@@ -804,29 +796,33 @@ export const DashboardView = () => {
                 <button
                   type="button"
                   onClick={() => handleStartExamMode('practice', 'quick')}
-                  disabled={status !== 'Approved' || !examSettings?.allowStudentPracticeMode}
                   className={`w-full py-2.5 px-3 rounded-lg font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
                     status !== 'Approved' || !examSettings?.allowStudentPracticeMode
-                      ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                      ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300'
                       : 'bg-purple-700 hover:bg-purple-800 text-white shadow hover:shadow-md active:scale-95'
                   }`}
                 >
-                  {status !== 'Approved' || !examSettings?.allowStudentPracticeMode ? (
+                  {status !== 'Approved' ? (
+                    <>
+                      <Lock className="w-3.5 h-3.5 text-slate-600" />
+                      <span>
+                        {isMalpracticeSanctioned
+                          ? 'Access Restricted — View Status'
+                          : currentUser.appealStatus === 'require_payment'
+                          ? 'Clearance Due (₦25.00)'
+                          : status === 'Pending'
+                          ? 'Clearance Due (₦50.00)'
+                          : 'Correction Required'}
+                      </span>
+                    </>
+                  ) : !examSettings?.allowStudentPracticeMode ? (
                     <>
                       <Lock className="w-3.5 h-3.5 text-slate-500" />
-                      <span>
-                        {(status === 'Suspended' || currentUser.malpracticeBlocked)
-                          ? 'Barred (Malpractice)'
-                          : !examSettings?.allowStudentPracticeMode
-                          ? 'Disabled by Admin'
-                          : status === 'Pending'
-                          ? 'Approval Pending'
-                          : 'Disapproved'}
-                      </span>
+                      <span>Scheduled by Center Administrator</span>
                     </>
                   ) : (
                     <>
-                      <span>Start Quick Practice</span>
+                      <span>Start Practice Drill</span>
                       <ArrowRight className="w-3.5 h-3.5 stroke-[3]" />
                     </>
                   )}
@@ -846,9 +842,7 @@ export const DashboardView = () => {
             {/* Card 1: Print Registration e-Slip */}
             <div
               onClick={handleOpenSlip}
-              className={`bg-white p-3 sm:p-5 rounded-xl border shadow-sm transition-all cursor-pointer group flex flex-col justify-between ${
-                status === 'Approved' ? 'border-slate-300 hover:shadow-md hover:border-[#006633]' : 'border-amber-200 bg-amber-50/20'
-              }`}
+              className="bg-white p-3 sm:p-5 rounded-xl border border-slate-300 hover:border-[#006633] shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
             >
               <div>
                 <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-110 transition-transform">
@@ -858,21 +852,17 @@ export const DashboardView = () => {
                   <h3 className="font-bold text-xs sm:text-sm text-slate-900 uppercase leading-snug">
                     Registration Slip
                   </h3>
-                  {status !== 'Approved' && (
-                    <span className="text-[9px] sm:text-[10px] bg-amber-100 text-amber-900 font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
-                      <Lock className="w-2.5 h-2.5 text-amber-700" />
-                      <span>Locked</span>
-                    </span>
-                  )}
+                  <span className="text-[9px] sm:text-[10px] bg-emerald-50 text-emerald-800 font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 sm:gap-1 flex-shrink-0 border border-emerald-200">
+                    <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                    <span>Available</span>
+                  </span>
                 </div>
                 <p className="hidden sm:block text-xs text-slate-500 mt-1">
-                  View and print your candidate practice examination slip with center and seat details.
+                  Official candidate practice examination slip with center, seat, and biometric details.
                 </p>
               </div>
-              <span className={`text-[11px] sm:text-xs font-bold mt-2 sm:mt-4 flex items-center gap-1 ${
-                status === 'Approved' ? 'text-[#006633]' : 'text-amber-800'
-              }`}>
-                <span>{status === 'Approved' ? 'View Slip →' : 'Locked'}</span>
+              <span className="text-[11px] sm:text-xs font-bold mt-2 sm:mt-4 flex items-center gap-1 text-[#006633]">
+                <span>View &amp; Print Slip →</span>
               </span>
             </div>
 
@@ -880,7 +870,7 @@ export const DashboardView = () => {
             <div
               onClick={handleOpenCaps}
               className={`bg-white p-3 sm:p-5 rounded-xl border shadow-sm transition-all cursor-pointer group flex flex-col justify-between ${
-                status === 'Approved' ? 'border-slate-300 hover:shadow-md hover:border-[#006633]' : 'border-slate-200 opacity-80'
+                status === 'Approved' ? 'border-slate-300 hover:shadow-md hover:border-[#006633]' : 'border-slate-200 bg-slate-50/50'
               }`}
             >
               <div>
@@ -891,21 +881,25 @@ export const DashboardView = () => {
                   <h3 className="font-bold text-xs sm:text-sm text-slate-900 uppercase leading-snug">
                     CAPS Portal
                   </h3>
-                  {status !== 'Approved' && (
-                    <span className="text-[9px] sm:text-[10px] bg-slate-100 text-slate-600 font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
-                      <Lock className="w-2.5 h-2.5 text-slate-500" />
-                      <span>Locked</span>
+                  {status !== 'Approved' ? (
+                    <span className="text-[9px] sm:text-[10px] bg-amber-50 text-amber-800 font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 sm:gap-1 flex-shrink-0 border border-amber-200">
+                      <Lock className="w-2.5 h-2.5 text-amber-600" />
+                      <span>Clearance Due</span>
+                    </span>
+                  ) : (
+                    <span className="text-[9px] sm:text-[10px] bg-blue-50 text-blue-800 font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 sm:gap-1 flex-shrink-0 border border-blue-200">
+                      <span>Active</span>
                     </span>
                   )}
                 </div>
                 <p className="hidden sm:block text-xs text-slate-500 mt-1">
-                  Check admission status, accept or reject institutional admission offers on Central Processing.
+                  Verify institutional admission recommendations and Central Processing offers.
                 </p>
               </div>
               <span className={`text-[11px] sm:text-xs font-bold mt-2 sm:mt-4 flex items-center gap-1 ${
-                status === 'Approved' ? 'text-blue-700' : 'text-slate-500'
+                status === 'Approved' ? 'text-blue-700' : 'text-amber-800'
               }`}>
-                <span>{status === 'Approved' ? 'Access CAPS →' : 'Locked'}</span>
+                <span>{status === 'Approved' ? 'Access CAPS →' : 'Clearance Required →'}</span>
               </span>
             </div>
 
@@ -913,7 +907,7 @@ export const DashboardView = () => {
             <div
               onClick={handleOpenResults}
               className={`bg-white p-3 sm:p-5 rounded-xl border shadow-sm transition-all cursor-pointer group flex flex-col justify-between ${
-                status === 'Approved' ? 'border-slate-300 hover:shadow-md hover:border-[#006633]' : 'border-slate-200 opacity-80'
+                status === 'Approved' ? 'border-slate-300 hover:shadow-md hover:border-[#006633]' : 'border-slate-200 bg-slate-50/50'
               }`}
             >
               <div>
@@ -924,30 +918,36 @@ export const DashboardView = () => {
                   <h3 className="font-bold text-xs sm:text-sm text-slate-900 uppercase leading-snug">
                     Check Results
                   </h3>
-                  {status !== 'Approved' && (
-                    <span className="text-[9px] sm:text-[10px] bg-slate-100 text-slate-600 font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
-                      <Lock className="w-2.5 h-2.5 text-slate-500" />
-                      <span>Locked</span>
+                  {status !== 'Approved' ? (
+                    <span className="text-[9px] sm:text-[10px] bg-amber-50 text-amber-800 font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 sm:gap-1 flex-shrink-0 border border-amber-200">
+                      <Lock className="w-2.5 h-2.5 text-amber-600" />
+                      <span>Clearance Due</span>
+                    </span>
+                  ) : latestScore ? (
+                    <span className="text-[9px] sm:text-[10px] bg-emerald-50 text-emerald-800 font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 sm:gap-1 flex-shrink-0 border border-emerald-200">
+                      <span>Score: {latestScore}/400</span>
+                    </span>
+                  ) : (
+                    <span className="text-[9px] sm:text-[10px] bg-purple-50 text-purple-800 font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 sm:gap-1 flex-shrink-0 border border-purple-200">
+                      <span>Ready</span>
                     </span>
                   )}
                 </div>
                 <p className="hidden sm:block text-xs text-slate-500 mt-1">
-                  Print your practice result notification slip and review solution explanations.
+                  Access detailed candidate performance notification slip and comprehensive answer reviews.
                 </p>
               </div>
               <span className={`text-[11px] sm:text-xs font-bold mt-2 sm:mt-4 flex items-center gap-1 ${
-                status === 'Approved' ? 'text-purple-700' : 'text-slate-500'
+                status === 'Approved' ? 'text-purple-700' : 'text-amber-800'
               }`}>
-                <span>{status === 'Approved' ? (latestScore ? `Latest: ${latestScore}/400 →` : 'Results →') : 'Locked'}</span>
+                <span>{status === 'Approved' ? (latestScore ? `View Performance Slip (${latestScore}) →` : 'Review Results →') : 'Clearance Required →'}</span>
               </span>
             </div>
 
             {/* Card 4: Choice of Institution & O'Levels */}
             <div
               onClick={handleOpenChoices}
-              className={`bg-white p-3 sm:p-5 rounded-xl border shadow-sm transition-all cursor-pointer group flex flex-col justify-between ${
-                status === 'Approved' ? 'border-slate-300 hover:shadow-md hover:border-[#006633]' : 'border-slate-200'
-              }`}
+              className="bg-white p-3 sm:p-5 rounded-xl border border-slate-300 hover:border-[#006633] shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
             >
               <div>
                 <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-110 transition-transform">
@@ -957,24 +957,19 @@ export const DashboardView = () => {
                   <h3 className="font-bold text-xs sm:text-sm text-slate-900 uppercase leading-snug">
                     Choices &amp; O'Level
                   </h3>
-                  <span className={`text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 sm:gap-1 flex-shrink-0 ${
-                    status === 'Approved' ? 'bg-emerald-50 text-emerald-800' : 'bg-slate-100 text-slate-600'
-                  }`}>
-                    {status !== 'Approved' && <Lock className="w-2.5 h-2.5 text-slate-500" />}
-                    <span>{status === 'Approved' ? '4 Choices' : 'Locked'}</span>
+                  <span className="text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 sm:gap-1 flex-shrink-0 bg-emerald-50 text-emerald-800 border border-emerald-200">
+                    <span>4 Choices Verified</span>
                   </span>
                 </div>
                 <p className="hidden sm:block text-xs font-bold text-slate-800 mt-1 truncate">
-                  1st: {currentUser.firstChoice?.institution}
+                  1st: {currentUser.firstChoice?.institution || 'Primary Choice Selected'}
                 </p>
                 <p className="hidden sm:block text-[11px] text-emerald-800 font-semibold truncate">
-                  {currentUser.firstChoice?.course}
+                  {currentUser.firstChoice?.course || 'Academic Discipline Selected'}
                 </p>
               </div>
-              <span className={`text-[11px] sm:text-xs font-bold mt-2 sm:mt-4 flex items-center gap-1 ${
-                status === 'Approved' ? 'text-[#006633]' : 'text-slate-500'
-              }`}>
-                <span>{status === 'Approved' ? 'View & Edit →' : 'Frozen'}</span>
+              <span className="text-[11px] sm:text-xs font-bold mt-2 sm:mt-4 flex items-center gap-1 text-[#006633]">
+                <span>Review Choices &amp; Grades →</span>
               </span>
             </div>
           </div>
@@ -1053,6 +1048,43 @@ export const DashboardView = () => {
           <span className="text-[11px] text-slate-500 font-mono">JAMB Simulation Platform</span>
         </div>
       </footer>
+
+      {/* In-App Professional Advisory Dialog (replaces browser alerts) */}
+      {noticeModal && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border-2 border-[#006633] overflow-hidden animate-in zoom-in-95 duration-150">
+            <div className="bg-[#004d25] text-white p-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Info className="w-5 h-5 text-amber-300" />
+                <h3 className="text-sm font-black uppercase tracking-wide">
+                  {noticeModal.title || 'Official Advisory'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNoticeModal(null)}
+                className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="text-xs text-slate-700 leading-relaxed font-medium">
+                {noticeModal.message}
+              </p>
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setNoticeModal(null)}
+                  className="w-full py-2.5 bg-[#006633] hover:bg-[#004d25] text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow transition-all"
+                >
+                  {noticeModal.actionLabel || 'Acknowledge & Close'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tertiary Institutional Choices Modal */}
       <ChoicesModal

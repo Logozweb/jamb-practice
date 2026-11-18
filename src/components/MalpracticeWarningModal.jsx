@@ -44,39 +44,39 @@ export const MalpracticeWarningModal = () => {
   if (malpracticeStrikes >= 3 || isDisqualified) {
     return (
       <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-        <div className="max-w-lg w-full bg-white rounded-2xl shadow-2xl border-4 border-red-600 overflow-hidden animate-in zoom-in-95 duration-200">
-          <div className="bg-red-700 text-white p-6 text-center">
-            <div className="w-16 h-16 rounded-full bg-white/20 border-2 border-white flex items-center justify-center mx-auto mb-3 animate-pulse">
+        <div className="max-w-lg w-full bg-white rounded-2xl shadow-2xl border-4 border-rose-700 overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="bg-gradient-to-r from-rose-900 to-rose-700 text-white p-6 text-center">
+            <div className="w-16 h-16 rounded-full bg-white/20 border-2 border-white flex items-center justify-center mx-auto mb-3">
               <ShieldAlert className="w-10 h-10 text-white" />
             </div>
-            <span className="text-[11px] font-black tracking-widest uppercase bg-black/30 px-3 py-1 rounded-full text-red-200">
-              Anti-Malpractice Security Protocol
+            <span className="text-[11px] font-black tracking-widest uppercase bg-black/40 px-3 py-1 rounded-full text-rose-200">
+              Examination Integrity Protocol • Session Terminated
             </span>
             <h2 className="text-xl md:text-2xl font-black uppercase mt-2">
-              Examination Terminated
+              Automated Session Termination
             </h2>
-            <p className="text-xs text-red-100 font-bold mt-1">
-              Disqualified for Suspected Examination Malpractice
+            <p className="text-xs text-rose-100 font-bold mt-1">
+              Permissible Navigation Tolerances Exceeded
             </p>
           </div>
 
           <div className="p-6 space-y-4">
-            <div className="p-4 bg-red-50 border border-red-200 rounded-xl space-y-2">
-              <div className="flex items-center gap-2 font-black text-red-900 text-sm">
-                <Lock className="w-4 h-4 text-red-600 flex-shrink-0" />
-                <span>Candidate Account Disapproved (3/3 Violations)</span>
+            <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl space-y-2">
+              <div className="flex items-center gap-2 font-black text-rose-950 text-sm">
+                <Lock className="w-4 h-4 text-rose-700 flex-shrink-0" />
+                <span>Disciplinary Board Referral (3 of 3 Infractions Recorded)</span>
               </div>
-              <p className="text-xs text-red-800 leading-relaxed">
-                You have exceeded the maximum allowable navigation violations during this CBT session by switching windows, tabbing away, pressing ESCAPE, or exiting fullscreen mode.
+              <p className="text-xs text-rose-900 leading-relaxed">
+                The examination proctoring engine recorded three consecutive navigation infractions (window minimization, application alternation, or exiting full-screen mode). The active session has concluded.
               </p>
             </div>
 
-            <div className="text-xs text-slate-600 space-y-2 leading-relaxed">
+            <div className="text-xs text-slate-700 space-y-2 leading-relaxed">
               <p>
-                <strong>Administrative Action Taken:</strong> Your examination session has been stopped and automatically submitted with a score of 0. Your candidate account has been set to <strong>Disapproved / Suspended</strong>.
+                <strong>Administrative Determination:</strong> In accordance with official CBT regulations, this session has concluded and your responses have been recorded with an aggregate score of 0. Your candidate profile has been placed on <strong>Administrative Hold</strong>.
               </p>
               <p>
-                Under official CBT regulations, you are <strong>strictly barred from taking or retaking any examination</strong> on this platform unless a Platform Administrator reviews your case and approves your account again.
+                <strong>Next Steps:</strong> Further examination sessions remain restricted pending administrative review. You may review your session record below and submit an official statement of explanation through the Candidate Appeals channel on your dashboard.
               </p>
             </div>
 
@@ -84,9 +84,9 @@ export const MalpracticeWarningModal = () => {
               <button
                 type="button"
                 onClick={handleDisqualificationExit}
-                className="w-full py-3.5 bg-red-700 hover:bg-red-800 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
+                className="w-full py-3.5 bg-rose-800 hover:bg-rose-900 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
               >
-                <span>View Disqualification Result Record</span>
+                <span>View Examination Disqualification Record</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
@@ -113,30 +113,30 @@ export const MalpracticeWarningModal = () => {
             <AlertTriangle className="w-7 h-7 text-white" />
           </div>
           <span className="text-[10px] font-black tracking-widest uppercase bg-black/30 px-2.5 py-0.5 rounded-full text-amber-100">
-            Security Warning Violation ({malpracticeStrikes} of 3)
+            Examination Integrity • Compliance Notice ({malpracticeStrikes} of 3)
           </span>
           <h3 className="text-lg font-black uppercase mt-2">
-            {isSecondStrike ? '🚨 Final Malpractice Warning' : '⚠️ Navigation Violation Detected'}
+            {isSecondStrike ? 'Final Compliance Advisory' : 'Session Navigation Advisory'}
           </h3>
         </div>
 
         <div className="p-6 space-y-4">
           <p className="text-xs text-slate-700 leading-relaxed font-medium">
-            You navigated away from the active examination window, pressed the <strong>ESCAPE</strong> key, or exited full-screen mode. Under JAMB CBT anti-cheating protocols, all candidates must remain locked in full-screen mode at all times.
+            An unexpected window navigation, key sequence (such as <strong>ESCAPE</strong>), or full-screen exit was recorded. Official CBT testing regulations mandate uninterrupted full-screen operation throughout the examination session.
           </p>
 
           <div className={`p-3.5 rounded-xl border text-xs font-bold ${
             isSecondStrike
-              ? 'bg-red-50 border-red-300 text-red-900'
-              : 'bg-amber-50 border-amber-300 text-amber-900'
+              ? 'bg-rose-50 border-rose-300 text-rose-950'
+              : 'bg-amber-50 border-amber-300 text-amber-950'
           }`}>
             {isSecondStrike ? (
               <p>
-                🚨 FINAL CRITICAL WARNING: This is Strike 2 of 3! Pressing ESCAPE or switching tabs one more time will immediately DISQUALIFY your exam and DISAPPROVE your candidate account.
+                CRITICAL NOTICE (2 of 3): A subsequent navigation infraction will immediately trigger automated session termination, zero aggregate scoring, and candidate profile referral to the Disciplinary Board.
               </p>
             ) : (
               <p>
-                Notice (Strike 1 of 3): Do NOT press the ESCAPE (ESC) key or switch tabs. Continued violations will result in automatic submission, zero score, and account disapproval.
+                ADVISORY (1 of 3): Refrain from pressing the ESCAPE key, switching applications, or minimizing the browser. Two further infractions will result in automated session termination.
               </p>
             )}
           </div>
@@ -150,7 +150,7 @@ export const MalpracticeWarningModal = () => {
               }`}
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>Return to Full-Screen Examination</span>
+              <span>Acknowledge &amp; Resume Full-Screen Examination</span>
             </button>
           </div>
         </div>

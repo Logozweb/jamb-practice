@@ -64,11 +64,11 @@ export const PreExamSecurityModal = () => {
           </div>
 
           <span className="text-[10px] font-black uppercase tracking-widest bg-emerald-900/80 text-emerald-200 px-3 py-1 rounded-full border border-emerald-400/40">
-            Anti-Malpractice Security Protocol
+            Examination Environment Protocol • Candidate Compliance
           </span>
 
           <h2 className="text-xl sm:text-2xl font-black uppercase mt-2 text-white">
-            Security & Full-Screen Advisory
+            Pre-Examination Environment Guidelines
           </h2>
           <p className="text-xs text-emerald-100 font-medium mt-1">
             Official Computer Based Test (CBT) Proctored Environment
@@ -104,35 +104,35 @@ export const PreExamSecurityModal = () => {
           {/* Critical Security Rules Alert Box */}
           <div className="space-y-3">
             <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-              <Lock className="w-4 h-4 text-red-600" />
-              <span>Mandatory Anti-Cheating Regulations:</span>
+              <Lock className="w-4 h-4 text-emerald-800" />
+              <span>Mandatory Examination Conduct &amp; Full-Screen Regulations:</span>
             </h3>
 
             <div className="space-y-2.5 text-xs text-slate-700">
-              <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2.5">
-                <Maximize2 className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="p-3 bg-slate-50 border border-slate-300 rounded-xl flex items-start gap-2.5">
+                <Maximize2 className="w-4 h-4 text-[#006633] flex-shrink-0 mt-0.5" />
                 <div>
-                  <strong className="text-red-950 font-bold block">1. Mandatory Fullscreen Mode:</strong>
-                  <span>Clicking the start button below will immediately enter full-screen mode. You are <strong>strictly barred</strong> from navigating away or minimizing the browser window.</span>
+                  <strong className="text-slate-950 font-bold block">1. Continuous Full-Screen Display:</strong>
+                  <span>Commencing the session locks your browser into exclusive full-screen mode. Minimizing the application window or navigating away is strictly prohibited.</span>
                 </div>
               </div>
 
-              <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2.5">
-                <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="p-3 bg-slate-50 border border-slate-300 rounded-xl flex items-start gap-2.5">
+                <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <strong className="text-red-950 font-bold block">2. Do NOT Press ESCAPE (ESC), Switch Tabs, or Inspect:</strong>
-                  <span>Pressing <strong>ESCAPE</strong>, tabbing away, or attempting developer inspections (F12, right-click, Ctrl+Shift+I) triggers immediate security strikes.</span>
+                  <strong className="text-slate-950 font-bold block">2. Prohibited System Interactions:</strong>
+                  <span>Pressing the <strong>ESCAPE</strong> key, toggling applications (Alt+Tab/Cmd+Tab), or opening developer tools will be logged as security infractions.</span>
                 </div>
               </div>
 
-              <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl flex items-start gap-2.5">
+              <div className="p-3 bg-amber-50/70 border border-amber-300 rounded-xl flex items-start gap-2.5">
                 <ShieldAlert className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
                 <div>
-                  <strong className="text-amber-950 font-bold block">3. Three-Strike Sanction & Account Disapproval:</strong>
+                  <strong className="text-amber-950 font-bold block">3. Automated Session Termination:</strong>
                   <ul className="mt-1 space-y-1 text-[11px] list-disc list-inside text-amber-900 font-medium">
-                    <li><strong>Violations 1 & 2:</strong> Stern warning notices appear on screen.</li>
+                    <li><strong>Infractions 1 &amp; 2:</strong> Real-time compliance advisory notices are displayed.</li>
                     <li>
-                      <strong>Violation 3 (Final Sanction):</strong> Immediate examination termination, automatic score submission with <strong>0 marks</strong>, and your candidate account is <strong>Disapproved / Suspended</strong>. You cannot take any further exams until an Admin manually reviews and approves your account.
+                      <strong>Infraction 3 (Session Closure):</strong> Immediate automated session termination with zero aggregate scoring, and referral of the candidate profile to the Disciplinary Board.
                     </li>
                   </ul>
                 </div>
@@ -147,7 +147,7 @@ export const PreExamSecurityModal = () => {
               onClick={() => setIsPreExamModalOpen(false)}
               className="w-full sm:w-auto px-5 py-3 border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs uppercase tracking-wider rounded-xl transition-all"
             >
-              Cancel / Return
+              Return to Dashboard
             </button>
 
             <button
@@ -156,7 +156,7 @@ export const PreExamSecurityModal = () => {
               className="w-full sm:flex-1 py-3.5 px-6 bg-[#006633] hover:bg-[#00552b] text-white font-black text-xs sm:text-sm uppercase tracking-wider rounded-xl shadow-lg hover:shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
             >
               <Maximize2 className="w-4 h-4" />
-              <span>Acknowledge & Begin Fullscreen Exam</span>
+              <span>Acknowledge &amp; Launch Full-Screen Session</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>

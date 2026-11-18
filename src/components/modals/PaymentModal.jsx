@@ -46,6 +46,7 @@ export const PaymentModal = ({ isOpen, onClose, targetActionName = 'this feature
           email: currentUser.email,
           amount: feeNaira * 100, // Paystack amount is in Kobo
           currency: 'NGN',
+          channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer'],
           ref: reference,
           metadata: {
             custom_fields: [
@@ -126,18 +127,17 @@ export const PaymentModal = ({ isOpen, onClose, targetActionName = 'this feature
           </button>
 
           <div className="flex items-center gap-2 mb-1.5">
-            <span className="px-2 py-0.5 rounded-full bg-amber-400 text-slate-900 text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1">
+            <span className="px-2.5 py-0.5 rounded-full bg-amber-400 text-slate-900 text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1 shadow-sm">
               <Sparkles className="w-3 h-3" />
-              <span>Portal Activation</span>
+              <span>Official Clearance Facility</span>
             </span>
-            <span className="text-emerald-200 text-xs font-semibold">Test Phase</span>
           </div>
 
           <h2 className="text-lg sm:text-xl font-black uppercase tracking-wide">
-            Unlock Full Access
+            Candidate Examination Clearance
           </h2>
           <p className="text-xs text-emerald-100 mt-0.5">
-            To access {targetActionName}, activate your candidate account.
+            Complete administrative clearance to enable full CBT mock testing and performance tracking.
           </p>
         </div>
 
@@ -148,20 +148,17 @@ export const PaymentModal = ({ isOpen, onClose, targetActionName = 'this feature
           <div className={`${isReactivation ? 'bg-amber-50 border-amber-400' : 'bg-emerald-50 border-emerald-300'} border-2 rounded-xl p-3.5 flex items-center justify-between`}>
             <div>
               <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                {isReactivation ? 'Re-Activation Fee (50% Appeal Relief)' : 'One-Time Activation Fee'}
+                {isReactivation ? 'Disciplinary Concession Fee (50% Relief)' : 'Candidate Portal Clearance Fee'}
               </div>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-2xl sm:text-3xl font-black text-[#006633]">₦{feeNaira}</span>
+                <span className="text-2xl sm:text-3xl font-black text-[#006633]">₦{feeNaira}.00</span>
                 {isReactivation ? (
                   <>
-                    <span className="text-xs text-slate-500 font-semibold line-through">₦{baseFeeNaira}</span>
-                    <span className="text-[10px] font-bold text-amber-900 bg-amber-200 px-1.5 py-0.5 rounded">Half-Price (50% Relief)</span>
+                    <span className="text-xs text-slate-500 font-semibold line-through">₦{baseFeeNaira}.00</span>
+                    <span className="text-[10px] font-bold text-amber-900 bg-amber-200 px-1.5 py-0.5 rounded">50% Board Concession</span>
                   </>
                 ) : (
-                  <>
-                    <span className="text-xs text-slate-500 font-semibold line-through">₦1,000</span>
-                    <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">95% OFF Test Phase</span>
-                  </>
+                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">Official Subsidized Rate</span>
                 )}
               </div>
             </div>
@@ -185,32 +182,36 @@ export const PaymentModal = ({ isOpen, onClose, targetActionName = 'this feature
               <span className="text-slate-800 font-mono font-bold">{currentUser.regNumber}</span>
             </div>
             <div className="flex justify-between items-center pt-1 border-t border-slate-200">
-              <span className="text-slate-500">Current Status:</span>
-              <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded text-[10px] font-bold">Pending Approval</span>
+              <span className="text-slate-500">Clearance Status:</span>
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                isReactivation ? 'bg-amber-100 text-amber-900' : 'bg-slate-200 text-slate-800'
+              }`}>
+                {isReactivation ? 'Concession Granted (Clearance Due)' : 'Registration Recorded (Clearance Due)'}
+              </span>
             </div>
           </div>
 
           {/* What Unlocking Grants */}
           <div className="space-y-2">
             <div className="text-[11px] font-black uppercase tracking-wider text-slate-600">
-              Everything Unlocked After Payment:
+              Examination Services Enabled:
             </div>
             <div className="grid grid-cols-1 gap-1.5 text-xs text-slate-700">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                <span>Unlimited Full Mock CBT Simulations (180 questions)</span>
+                <span>Unlimited Full Mock CBT Simulations (180 questions with official scaled scoring)</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                <span>Subject Practice & Instant Explanations</span>
+                <span>Subject Practice Drills with Step-by-Step Solutions</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                <span>Official JAMB Result Slip & Solution Reviews</span>
+                <span>Performance Slip Generation &amp; Detailed Analytics</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                <span>JAMB CAPS & Institution Choices Management</span>
+                <span>JAMB Central Admission Processing System (CAPS) Integration</span>
               </div>
             </div>
           </div>
@@ -220,7 +221,7 @@ export const PaymentModal = ({ isOpen, onClose, targetActionName = 'this feature
             <div className="p-3 bg-rose-50 border border-rose-300 rounded-xl text-xs text-rose-800 flex items-start gap-2">
               <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
               <div>
-                <strong>Payment Notice:</strong> {errorNotice}
+                <strong>Advisory:</strong> {errorNotice}
               </div>
             </div>
           )}
@@ -230,7 +231,7 @@ export const PaymentModal = ({ isOpen, onClose, targetActionName = 'this feature
             <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-xs text-emerald-800 flex items-start gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
               <div>
-                <strong>Approved!</strong> {successNotice}
+                <strong>Clearance Confirmed:</strong> {successNotice}
               </div>
             </div>
           )}
@@ -239,9 +240,9 @@ export const PaymentModal = ({ isOpen, onClose, targetActionName = 'this feature
           <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
             <span className="flex items-center gap-1">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Bank Card, USSD, Bank Transfer</span>
+              <span>Card • Bank Transfer • USSD</span>
             </span>
-            <span className="font-semibold text-slate-600">Powered by Paystack</span>
+            <span className="font-semibold text-slate-600">Secured via Paystack</span>
           </div>
 
           {/* Action CTA */}
@@ -249,26 +250,26 @@ export const PaymentModal = ({ isOpen, onClose, targetActionName = 'this feature
             <button
               onClick={handleInitiatePayment}
               disabled={loading || verifying || Boolean(successNotice)}
-              className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+              className="w-full py-3 px-4 bg-[#006633] hover:bg-[#00552b] active:bg-[#004422] text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow hover:shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-60"
             >
               {verifying ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Verifying Transaction with Paystack...</span>
+                  <span>Verifying Clearance Transaction...</span>
                 </>
               ) : loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Opening Paystack Checkout...</span>
+                  <span>Initializing Secure Checkout...</span>
                 </>
               ) : successNotice ? (
                 <>
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>Account Unlocked!</span>
+                  <span>Clearance Verified</span>
                 </>
               ) : (
                 <>
-                  <span>{isReactivation ? `Pay ₦${feeNaira} (Half Fee) & Reactivate Portal` : `Pay ₦${feeNaira} & Unlock Portal`}</span>
+                  <span>{isReactivation ? `Complete Re-Activation Clearance (₦${feeNaira}.00)` : `Complete Examination Clearance (₦${feeNaira}.00)`}</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
@@ -277,7 +278,7 @@ export const PaymentModal = ({ isOpen, onClose, targetActionName = 'this feature
 
           {/* Admin manual approval notice */}
           <div className="text-center text-[10px] text-slate-400">
-            Alternatively, your account can also be approved manually by an Administrator without payment.
+            Note: Clearance may alternatively be verified manually by an assigned Center Administrator.
           </div>
         </div>
 

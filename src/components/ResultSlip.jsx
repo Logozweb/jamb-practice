@@ -522,22 +522,22 @@ export const ResultSlip = () => {
 
         {/* Malpractice Disqualification Warning Banner if Disqualified */}
         {activeAttempt.disqualified && (
-          <div className="bg-red-50 border-b-2 border-red-500 p-4 sm:p-5 flex items-start gap-3 text-red-950">
-            <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+          <div className="bg-rose-50 border-b-2 border-rose-400 p-4 sm:p-5 flex items-start gap-3 text-rose-950">
+            <AlertCircle className="w-6 h-6 text-rose-700 flex-shrink-0 mt-0.5" />
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase tracking-wider bg-red-200 text-red-900 px-2 py-0.5 rounded">
-                  Official Disqualification Notice
+                <span className="text-[10px] font-black uppercase tracking-wider bg-rose-200 text-rose-950 px-2.5 py-0.5 rounded-full border border-rose-300">
+                  Official Integrity Infraction Notice
                 </span>
-                <span className="text-xs font-black uppercase text-red-900">
+                <span className="text-xs font-black uppercase text-rose-900">
                   Zero Score Awarded (0 / 400)
                 </span>
               </div>
-              <h3 className="text-sm font-black text-red-950 uppercase">
-                Examination Terminated: Repeated Navigation Violations (3 Strikes)
+              <h3 className="text-sm font-black text-rose-950 uppercase">
+                Session Terminated: Permissible Navigation Tolerances Exceeded
               </h3>
-              <p className="text-xs text-red-800 leading-relaxed">
-                This examination session was automatically terminated because the candidate registered 3 consecutive navigation/fullscreen violations (exiting full-screen, tabbing away, or pressing ESCAPE). In accordance with CBT Anti-Malpractice regulations, the candidate account has been set to <strong>Disapproved / Suspended</strong> and barred from sitting for any further examinations until cleared by an Administrator.
+              <p className="text-xs text-rose-900 leading-relaxed">
+                This examination session was automatically concluded after recording three consecutive navigation infractions. In accordance with official CBT integrity regulations, your candidate profile has been placed on <strong>Administrative Hold</strong>. You may submit an official representation through the Candidate Appeals channel on your dashboard.
               </p>
             </div>
           </div>

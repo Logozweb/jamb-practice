@@ -116,10 +116,10 @@ export const InstructionsScreen = () => {
                       A built-in <strong>On-Screen Calculator</strong> is available for computation subjects.
                     </span>
                   </li>
-                  <li className="flex items-start gap-2 bg-red-50 p-2.5 rounded-lg border border-red-200 text-red-950 font-medium">
-                    <ShieldAlert className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                  <li className="flex items-start gap-2 bg-slate-50 p-3 rounded-lg border border-slate-300 text-slate-800 font-medium">
+                    <ShieldAlert className="w-4 h-4 text-[#006633] flex-shrink-0 mt-0.5" />
                     <span>
-                      <strong>Anti-Malpractice Security Protocol:</strong> Clicking Start enters <strong>Fullscreen Mode</strong>. Exiting fullscreen, switching tabs, or navigating away triggers violation warnings. On the <strong>3rd strike</strong>, your session is terminated, submitted, and your account suspended.
+                      <strong>Examination Integrity Protocol:</strong> Commencing the session locks your browser into exclusive full-screen mode. Window minimization, application switching, or pressing the <strong>ESCAPE</strong> key logs compliance infractions. Three consecutive infractions trigger automated session termination and profile referral to the Disciplinary Board.
                     </span>
                   </li>
                 </ul>
@@ -128,7 +128,7 @@ export const InstructionsScreen = () => {
           </div>
 
           {/* Action Button */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-200">
+          <div className="flex flex-col-reverse sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-200">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setPhase('dashboard')}
@@ -147,9 +147,9 @@ export const InstructionsScreen = () => {
 
             <button
               onClick={() => setIsPreExamModalOpen(true)}
-              className="w-full sm:w-auto px-6 sm:px-8 py-3 bg-[#006633] hover:bg-[#00552b] text-white font-black text-xs sm:text-sm uppercase tracking-wider rounded-xl shadow-lg hover:shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
+              className="w-full sm:w-auto px-6 sm:px-8 py-3.5 bg-[#006633] hover:bg-[#00552b] text-white font-black text-xs sm:text-sm uppercase tracking-wider rounded-xl shadow-lg hover:shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
             >
-              <span>START EXAMINATION NOW</span>
+              <span>Commence Examination Session</span>
               <span>→</span>
             </button>
           </div>
