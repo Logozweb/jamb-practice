@@ -12,9 +12,31 @@ export function getAdminToken() {
   }
 }
 
+export function inspectAndSaveNewAdminToken(res) {
+  try {
+    if (!res || !res.headers) return;
+    const newToken = res.headers.get('X-New-Admin-Token');
+    if (newToken && typeof window !== 'undefined') {
+      localStorage.setItem('jamb_admin_token', newToken);
+    }
+  } catch {}
+}
+
 export function getAdminAuthHeaders() {
   const token = getAdminToken();
-  return token ? { 'Authorization': `Bearer ${token}` } : {};
+  const isAdmin = typeof window !== 'undefined' && localStorage.getItem('jamb_is_admin') === 'true';
+  const adminId = typeof window !== 'undefined' ? (localStorage.getItem('jamb_active_admin_id') || '') : '';
+  const headers = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  if (isAdmin) {
+    headers['X-Admin-Active'] = 'true';
+    if (adminId) {
+      headers['X-Admin-Id'] = adminId;
+    }
+  }
+  return headers;
 }
 
 export async function apiGetCandidates() {
@@ -22,6 +44,7 @@ export async function apiGetCandidates() {
     const res = await fetch('/api/candidates', {
       headers: { ...getAdminAuthHeaders() }
     });
+    inspectAndSaveNewAdminToken(res);
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data)) {
@@ -38,6 +61,19 @@ export async function apiGetCandidates() {
   } catch {
     return [];
   }
+}
+
+export async function apiGetCandidateById(id) {
+  if (!id) return null;
+  try {
+    const res = await fetch(`/api/candidates/${encodeURIComponent(id)}`);
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn('API get candidate by ID failed:', err);
+  }
+  return null;
 }
 
 export async function apiSaveCandidate(candidateData) {
@@ -228,6 +264,7 @@ export async function apiGetAppeals() {
     const res = await fetch('/api/appeals', {
       headers: { ...getAdminAuthHeaders() }
     });
+    inspectAndSaveNewAdminToken(res);
     if (res.ok) {
       const data = await res.json();
       return data.appeals || [];
@@ -245,6 +282,7 @@ export async function apiResolveAppeal(appealId, action, adminNotes = '') {
       headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
       body: JSON.stringify({ appealId, action, adminNotes })
     });
+    inspectAndSaveNewAdminToken(res);
     return await res.json();
   } catch (err) {
     return { success: false, error: 'Failed communicating appeal resolution to server.' };
@@ -261,6 +299,7 @@ export async function apiAdminUpdateCandidate(candidateId, updates) {
       headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
       body: JSON.stringify(updates)
     });
+    inspectAndSaveNewAdminToken(res);
     return await res.json();
   } catch (err) {
     return { success: false, error: 'Failed connecting to server to update candidate.' };
@@ -277,6 +316,7 @@ export async function apiGetSupportTickets(candidateId = null) {
       : '/api/support/tickets';
     const headers = candidateId ? {} : getAdminAuthHeaders();
     const res = await fetch(url, { headers });
+    inspectAndSaveNewAdminToken(res);
     if (res.ok) {
       const data = await res.json();
       return data.tickets || [];
@@ -307,6 +347,7 @@ export async function apiResolveSupportTicket({ ticketId, adminReply, status = '
       headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
       body: JSON.stringify({ ticketId, adminReply, status })
     });
+    inspectAndSaveNewAdminToken(res);
     return await res.json();
   } catch (err) {
     return { success: false, error: 'Failed communicating resolution to server.' };

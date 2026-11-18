@@ -234,8 +234,8 @@ export const AdminDashboard = () => {
     setExpandedTickets(next);
   };
 
-  const loadSupportTickets = async () => {
-    setIsLoadingTickets(true);
+  const loadSupportTickets = async (isBackground = false) => {
+    if (!isBackground) setIsLoadingTickets(true);
     try {
       const tickets = await apiGetSupportTickets();
       if (Array.isArray(tickets)) {
@@ -244,7 +244,7 @@ export const AdminDashboard = () => {
     } catch (e) {
       console.warn('Failed loading support tickets:', e);
     } finally {
-      setIsLoadingTickets(false);
+      if (!isBackground) setIsLoadingTickets(false);
     }
   };
 
@@ -409,6 +409,20 @@ export const AdminDashboard = () => {
     }
     syncAllDataFromDatabase();
   }, []);
+
+  // Live polling for incoming student support tickets and inquiries
+  useEffect(() => {
+    // Immediate background fetch when switching tabs
+    loadSupportTickets(true);
+
+    // Dynamic polling interval: 8s on support tab, 20s when on other tabs to keep badge fresh
+    const intervalMs = activeTab === 'support' ? 8000 : 20000;
+    const intervalId = setInterval(() => {
+      loadSupportTickets(true);
+    }, intervalMs);
+
+    return () => clearInterval(intervalId);
+  }, [activeTab]);
 
   const handleSavePaymentConfig = async (e) => {
     e.preventDefault();

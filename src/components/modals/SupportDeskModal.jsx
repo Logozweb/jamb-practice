@@ -43,20 +43,24 @@ export const SupportDeskModal = ({ isOpen, onClose }) => {
 
   useEffect(() => {
     if (isOpen && currentUser?.id) {
-      loadTickets();
+      loadTickets(false);
+      const timer = setInterval(() => {
+        loadTickets(true);
+      }, 10000);
+      return () => clearInterval(timer);
     }
   }, [isOpen, currentUser]);
 
-  const loadTickets = async () => {
+  const loadTickets = async (isBackground = false) => {
     if (!currentUser?.id) return;
-    setIsLoadingTickets(true);
+    if (!isBackground) setIsLoadingTickets(true);
     try {
       const tickets = await apiGetSupportTickets(currentUser.id);
       setMyTickets(tickets);
     } catch (e) {
       console.warn('Failed to load candidate support tickets:', e);
     } finally {
-      setIsLoadingTickets(false);
+      if (!isBackground) setIsLoadingTickets(false);
     }
   };
 

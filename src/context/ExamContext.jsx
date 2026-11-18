@@ -5,6 +5,7 @@ import { fetchAlocQuestions } from '../services/jambApiService';
 import { shuffleQuestions } from '../utils/shuffle';
 import {
   apiGetCandidates,
+  apiGetCandidateById,
   apiSaveCandidate,
   apiUpdateCandidate,
   apiDeleteCandidate,
@@ -124,6 +125,23 @@ export const ExamProvider = ({ children }) => {
           if (activeId) {
             const found = sanitized.find(c => c.id === activeId);
             if (found) setCurrentUser(found);
+          }
+        }
+
+        // Direct database refresh for active candidate (vital when candidate logs in on student devices)
+        const activeCandId = localStorage.getItem('jamb_active_candidate_id');
+        if (activeCandId && activeCandId !== 'cand_demo_01') {
+          try {
+            const freshCand = await apiGetCandidateById(activeCandId);
+            if (freshCand && freshCand.id) {
+              const freshSanitized = sanitizeCandidate(freshCand);
+              setCurrentUser(freshSanitized);
+              if (freshSanitized.selectedSubjects) {
+                setSelectedSubjectIds(freshSanitized.selectedSubjects);
+              }
+            }
+          } catch (e) {
+            console.warn('Individual candidate SQLite refresh notice:', e);
           }
         }
 
@@ -411,6 +429,30 @@ export const ExamProvider = ({ children }) => {
 
   const adminLogin = async (email, password) => {
     const cleanEmail = (email || '').toLowerCase().trim();
+
+    // 1. Direct SQLite server database authentication (generates Bearer session token)
+    try {
+      const remote = await apiLoginAdmin(cleanEmail, password);
+      if (remote.success && remote.admin) {
+        setIsAdminLoggedIn(true);
+        setCurrentAdmin(remote.admin);
+        setAdminUsers(prev => {
+          const filtered = prev.filter(a => a.id !== remote.admin.id);
+          return [...filtered, remote.admin];
+        });
+        try {
+          localStorage.setItem('jamb_is_admin', 'true');
+          localStorage.setItem('jamb_active_admin_id', remote.admin.id);
+        } catch (e) {}
+        await refreshCandidates();
+        setPhase('admin');
+        return { success: true };
+      }
+    } catch (err) {
+      console.warn('Remote admin authentication exception, checking local state:', err);
+    }
+
+    // 2. Fallback to local admin user cache if offline or server unreachable
     const admin = adminUsers.find(
       a => a.email.toLowerCase().trim() === cleanEmail && a.password === password
     );
@@ -427,25 +469,7 @@ export const ExamProvider = ({ children }) => {
       return { success: true };
     }
 
-    // Direct SQLite server database check
-    const remote = await apiLoginAdmin(cleanEmail, password);
-    if (remote.success && remote.admin) {
-      setIsAdminLoggedIn(true);
-      setCurrentAdmin(remote.admin);
-      setAdminUsers(prev => {
-        const filtered = prev.filter(a => a.id !== remote.admin.id);
-        return [...filtered, remote.admin];
-      });
-      try {
-        localStorage.setItem('jamb_is_admin', 'true');
-        localStorage.setItem('jamb_active_admin_id', remote.admin.id);
-      } catch (e) {}
-      await refreshCandidates();
-      setPhase('admin');
-      return { success: true };
-    }
-
-    return { success: false, error: remote.error || 'Invalid Administrator credentials. Please check your admin email and password.' };
+    return { success: false, error: 'Invalid Administrator credentials. Please check your admin email and password.' };
   };
 
   const adminLogout = () => {
@@ -604,39 +628,54 @@ export const ExamProvider = ({ children }) => {
     return null;
   });
 
-  // Auth: Login function
+  // Auth: Login function (Primary SQLite Database authentication)
   const login = async (emailOrReg, password) => {
     const cleanInput = (emailOrReg || '').trim();
+
+    // 1. Direct SQLite server database check (Primary source of truth across all devices)
+    try {
+      const remote = await apiLoginCandidate(cleanInput, password);
+      if (remote.success && remote.candidate) {
+        const sanitized = sanitizeCandidate(remote.candidate);
+        setCandidates(prev => {
+          const filtered = prev.filter(c => c.id !== sanitized.id);
+          return [...filtered, sanitized];
+        });
+        setCurrentUser(sanitized);
+        try {
+          localStorage.setItem('jamb_active_candidate_id', sanitized.id);
+        } catch (e) {}
+        setSelectedSubjectIds(sanitized.selectedSubjects || ['english', 'biology', 'chemistry', 'physics']);
+        setPhase('dashboard');
+        return { success: true };
+      } else if (remote.error && !remote.error.toLowerCase().includes('network')) {
+        // Explicit rejection from database (invalid credentials, blocked account, etc.)
+        return { success: false, error: remote.error };
+      }
+    } catch (err) {
+      console.warn('Direct database candidate login unreachable, checking offline state:', err);
+    }
+
+    // 2. Offline fallback ONLY if network is unreachable
     const candidate = candidates.find(
       c => (c.email.toLowerCase() === cleanInput.toLowerCase() ||
             c.regNumber.toUpperCase() === cleanInput.toUpperCase() ||
             c.profileCode === cleanInput ||
             (c.practiceId && c.practiceId.toUpperCase() === cleanInput.toUpperCase())) &&
-           c.password === password
+            c.password === password
     );
 
     if (candidate) {
       setCurrentUser(candidate);
+      try {
+        localStorage.setItem('jamb_active_candidate_id', candidate.id);
+      } catch (e) {}
       setSelectedSubjectIds(candidate.selectedSubjects || ['english', 'biology', 'chemistry', 'physics']);
       setPhase('dashboard');
       return { success: true };
     }
 
-    // Direct SQLite server database check (vital for fresh devices)
-    const remote = await apiLoginCandidate(cleanInput, password);
-    if (remote.success && remote.candidate) {
-      const sanitized = sanitizeCandidate(remote.candidate);
-      setCandidates(prev => {
-        const filtered = prev.filter(c => c.id !== sanitized.id);
-        return [...filtered, sanitized];
-      });
-      setCurrentUser(sanitized);
-      setSelectedSubjectIds(sanitized.selectedSubjects || ['english', 'biology', 'chemistry', 'physics']);
-      setPhase('dashboard');
-      return { success: true };
-    }
-
-    return { success: false, error: remote.error || 'Invalid Email/Practice ID/Reg No or Password. Please try again.' };
+    return { success: false, error: 'Invalid Email/Practice ID/Reg No or Password. Please try again.' };
   };
 
   // Auth: Register candidate with simple fast registration
