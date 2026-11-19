@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useExam } from '../../context/ExamContext';
 import { AVAILABLE_SUBJECTS } from '../../data/subjects';
 import { ChoicesModal } from '../modals/ChoicesModal';
