@@ -18,6 +18,7 @@ import {
   apiLogoutAdmin,
   apiUpdateAdminPassword
 } from '../services/dbService';
+import { fetchPublicPaymentSettings } from '../services/paymentService';
 
 const ExamContext = createContext(null);
 
@@ -110,11 +111,19 @@ export const ExamProvider = ({ children }) => {
   useEffect(() => {
     async function initDatabaseData() {
       try {
-        const [dbCandidates, dbSettings, dbAdmins] = await Promise.all([
+        const [dbCandidates, dbSettings, dbAdmins, dbPaymentSettings] = await Promise.all([
           apiGetCandidates(),
           apiGetPlatformSettings(),
-          apiGetAdmins()
+          apiGetAdmins(),
+          fetchPublicPaymentSettings()
         ]);
+
+        if (dbPaymentSettings) {
+          setPaymentSettings(dbPaymentSettings);
+          try {
+            localStorage.setItem('jamb_payment_settings', JSON.stringify(dbPaymentSettings));
+          } catch (e) {}
+        }
 
         if (Array.isArray(dbCandidates) && dbCandidates.length > 0) {
           const sanitized = dbCandidates.map(sanitizeCandidate);
@@ -355,6 +364,35 @@ export const ExamProvider = ({ children }) => {
       apiSavePlatformSettings(merged);
       return merged;
     });
+  };
+
+  // Payment & Portal Activation Pricing Settings (Synced dynamically from Admin Gateway)
+  const [paymentSettings, setPaymentSettings] = useState(() => {
+    try {
+      const saved = localStorage.getItem('jamb_payment_settings');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return {
+      enabled: true,
+      accessFeeNaira: 50,
+      paystackPublicKey: ''
+    };
+  });
+
+  const refreshPaymentSettings = async () => {
+    try {
+      const fresh = await fetchPublicPaymentSettings();
+      if (fresh) {
+        setPaymentSettings(fresh);
+        try {
+          localStorage.setItem('jamb_payment_settings', JSON.stringify(fresh));
+        } catch (e) {}
+        return fresh;
+      }
+    } catch (e) {
+      console.warn('Could not refresh payment settings:', e);
+    }
+    return null;
   };
 
   // Disclaimer Modal Global State
@@ -1371,6 +1409,9 @@ export const ExamProvider = ({ children }) => {
         updateCandidateChoices,
         examSettings,
         updateExamSettings,
+        paymentSettings,
+        setPaymentSettings,
+        refreshPaymentSettings,
         updateCurrentUser,
         malpracticeStrikes,
         setMalpracticeStrikes,

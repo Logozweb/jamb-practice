@@ -51,8 +51,19 @@ export const DashboardView = () => {
     examSettings,
     setIsDisclaimerOpen,
     finalResult,
-    setFinalResult
+    setFinalResult,
+    paymentSettings,
+    refreshPaymentSettings
   } = useExam();
+
+  useEffect(() => {
+    if (refreshPaymentSettings) {
+      refreshPaymentSettings();
+    }
+  }, []);
+
+  const accessFee = paymentSettings?.accessFeeNaira ?? 50;
+  const concessionFee = Math.round(accessFee / 2);
 
   const fileInputRef = useRef(null);
   const [photoError, setPhotoError] = useState('');
@@ -434,7 +445,7 @@ export const DashboardView = () => {
                   </span>
                 </div>
                 <p className="text-xs text-slate-700 mt-1 max-w-xl leading-relaxed">
-                  The Examination Administrator reviewed your representation and granted conditional re-activation. Complete the 50% concession clearance fee of <strong>₦25.00</strong> to restore full CBT examination testing access.
+                  The Examination Administrator reviewed your representation and granted conditional re-activation. Complete the 50% concession clearance fee of <strong>₦{concessionFee}.00</strong> to restore full CBT examination testing access.
                 </p>
               </div>
             </div>
@@ -444,7 +455,7 @@ export const DashboardView = () => {
               className="w-full sm:w-auto px-5 py-2.5 bg-[#006633] hover:bg-[#004d25] text-white rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider shadow hover:shadow-md transition-all flex items-center justify-center gap-2 flex-shrink-0"
             >
               <CreditCard className="w-4 h-4 text-amber-300" />
-              <span>Complete Re-Activation Clearance (₦25.00)</span>
+              <span>Complete Re-Activation Clearance (₦{concessionFee}.00)</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -464,7 +475,7 @@ export const DashboardView = () => {
                   </span>
                 </div>
                 <p className="text-xs text-slate-700 mt-1 max-w-xl leading-relaxed">
-                  Your candidate bio-data, 4-subject combination, and examination center are verified. Registration Slips and Subject Combinations are available. To enable unified timed CBT Mock Examinations and CAPS processing, complete standard candidate clearance (<strong>₦50.00</strong>).
+                  Your candidate bio-data, 4-subject combination, and examination center are verified. Registration Slips and Subject Combinations are available. To enable unified timed CBT Mock Examinations and CAPS processing, complete standard candidate clearance (<strong>₦{accessFee}.00</strong>).
                 </p>
               </div>
             </div>
@@ -474,7 +485,7 @@ export const DashboardView = () => {
               className="w-full sm:w-auto px-5 py-2.5 bg-[#006633] hover:bg-[#004d25] text-white rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider shadow hover:shadow-md transition-all flex items-center justify-center gap-2 flex-shrink-0"
             >
               <CreditCard className="w-4 h-4 text-amber-300" />
-              <span>Complete Examination Clearance (₦50.00)</span>
+              <span>Complete Examination Clearance (₦{accessFee}.00)</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -674,9 +685,9 @@ export const DashboardView = () => {
                         {isMalpracticeSanctioned
                           ? 'Access Restricted — View Status'
                           : currentUser.appealStatus === 'require_payment'
-                          ? 'Clearance Due (₦25.00)'
+                          ? `Clearance Due (₦${concessionFee}.00)`
                           : status === 'Pending'
-                          ? 'Clearance Due (₦50.00)'
+                          ? `Clearance Due (₦${accessFee}.00)`
                           : 'Correction Required'}
                       </span>
                     </>
@@ -736,9 +747,9 @@ export const DashboardView = () => {
                         {isMalpracticeSanctioned
                           ? 'Access Restricted — View Status'
                           : currentUser.appealStatus === 'require_payment'
-                          ? 'Clearance Due (₦25.00)'
+                          ? `Clearance Due (₦${concessionFee}.00)`
                           : status === 'Pending'
-                          ? 'Clearance Due (₦50.00)'
+                          ? `Clearance Due (₦${accessFee}.00)`
                           : 'Correction Required'}
                       </span>
                     </>
@@ -803,9 +814,9 @@ export const DashboardView = () => {
                         {isMalpracticeSanctioned
                           ? 'Access Restricted — View Status'
                           : currentUser.appealStatus === 'require_payment'
-                          ? 'Clearance Due (₦25.00)'
+                          ? `Clearance Due (₦${concessionFee}.00)`
                           : status === 'Pending'
-                          ? 'Clearance Due (₦50.00)'
+                          ? `Clearance Due (₦${accessFee}.00)`
                           : 'Correction Required'}
                       </span>
                     </>
@@ -870,9 +881,9 @@ export const DashboardView = () => {
                         {isMalpracticeSanctioned
                           ? 'Access Restricted — View Status'
                           : currentUser.appealStatus === 'require_payment'
-                          ? 'Clearance Due (₦25.00)'
+                          ? `Clearance Due (₦${concessionFee}.00)`
                           : status === 'Pending'
-                          ? 'Clearance Due (₦50.00)'
+                          ? `Clearance Due (₦${accessFee}.00)`
                           : 'Correction Required'}
                       </span>
                     </>

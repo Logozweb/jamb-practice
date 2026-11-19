@@ -87,7 +87,8 @@ export const AdminDashboard = () => {
     updateExamSettings,
     currentAdmin,
     updateAdminPassword,
-    setAdminDirectPassword
+    setAdminDirectPassword,
+    refreshPaymentSettings
   } = useExam();
 
   const [activeTab, setActiveTab] = useState('candidates'); // 'candidates' | 'email' | 'api' | 'settings' | 'results'
@@ -427,7 +428,10 @@ export const AdminDashboard = () => {
   const handleSavePaymentConfig = async (e) => {
     e.preventDefault();
     const updated = await saveAdminPaymentSettings(paymentConfig);
-    if (updated) setPaymentConfig(updated);
+    if (updated) {
+      setPaymentConfig(updated);
+      if (refreshPaymentSettings) refreshPaymentSettings();
+    }
     setPaymentSavedNotice(true);
     setTimeout(() => setPaymentSavedNotice(false), 3000);
   };
@@ -1523,7 +1527,7 @@ export const AdminDashboard = () => {
                           ) : appeal.status === 'require_payment' ? (
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-black text-xs uppercase bg-blue-100 text-blue-900 border border-blue-300">
                               <CreditCard className="w-3.5 h-3.5 text-blue-600" />
-                              <span>Re-Payment Required (Half Fee: ₦25)</span>
+                              <span>Re-Payment Required (Half Fee: ₦{Math.round((paymentConfig?.accessFeeNaira || 50) / 2)})</span>
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-black text-xs uppercase bg-rose-900 text-rose-200 border border-rose-700">
@@ -1606,7 +1610,7 @@ export const AdminDashboard = () => {
                                   disabled={isActionBusy}
                                   onClick={() => handleResolveAppeal(appeal.id, 'require_payment')}
                                   className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50"
-                                  title="Waive malpractice sanction and allow candidate to reactivate at 50% discount (half-price of portal fee: ₦25 of ₦50)."
+                                  title={`Waive malpractice sanction and allow candidate to reactivate at 50% discount (half-price of portal fee: ₦${Math.round((paymentConfig?.accessFeeNaira || 50) / 2)} of ₦${paymentConfig?.accessFeeNaira || 50}).`}
                                 >
                                   <CreditCard className="w-4 h-4 text-amber-200" />
                                   <span>Require Half Re-Payment (50%)</span>
@@ -2165,7 +2169,7 @@ export const AdminDashboard = () => {
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono font-bold bg-white focus:outline-none focus:border-[#006633]"
                       placeholder="50"
                     />
-                    <span className="text-[10px] text-slate-500 mt-0.5 block">Test fee is currently ₦50</span>
+                    <span className="text-[10px] text-slate-500 mt-0.5 block">Standard fee charged to candidates at activation (current: ₦{paymentConfig.accessFeeNaira || 50})</span>
                   </div>
 
                   <div>

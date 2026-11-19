@@ -3,7 +3,7 @@ import { useExam } from '../../context/ExamContext';
 import { ShieldCheck, CheckCircle2, Printer, X, CreditCard, Sparkles, Award } from 'lucide-react';
 
 export const LicenseReceiptModal = ({ isOpen, onClose }) => {
-  const { currentUser } = useExam();
+  const { currentUser, paymentSettings } = useExam();
 
   if (!isOpen || !currentUser) return null;
 
@@ -11,8 +11,10 @@ export const LicenseReceiptModal = ({ isOpen, onClose }) => {
     window.print();
   };
 
+  const accessFee = paymentSettings?.accessFeeNaira || 50;
+  const concessionFee = Math.round(accessFee / 2);
   const isReactivation = currentUser.appealStatus === 'reinstated' || Boolean(currentUser.paymentReference && currentUser.paymentReference.includes('reactivat'));
-  const amount = currentUser.paymentAmount || (isReactivation ? 25 : 50);
+  const amount = currentUser.paymentAmount || (isReactivation ? concessionFee : accessFee);
   const formattedDate = currentUser.paymentDate
     ? new Date(currentUser.paymentDate).toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' })
     : 'Active Simulation Session';
