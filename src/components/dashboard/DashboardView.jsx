@@ -82,9 +82,35 @@ export const DashboardView = () => {
   const status = currentUser.status || 'Pending';
   const isMalpracticeSanctioned = status === 'Suspended' || status === 'Disapproved' || status === 'Banned' || Boolean(currentUser.malpracticeBlocked);
 
+  const subjectChangeCount = Number(currentUser.subjectChangeCount || 0);
+  const isSubjectLimitReached = subjectChangeCount >= 2;
+  const hasFreeQuickTrial = status !== 'Approved' && !isMalpracticeSanctioned && !currentUser.quickTrialUsed;
+
   const triggerPaymentPrompt = (featureName) => {
     setPaymentTargetName(featureName);
     setIsPaymentModalOpen(true);
+  };
+
+  const handleOpenSubjectCombination = () => {
+    if (isMalpracticeSanctioned) {
+      setIsAppealModalOpen(true);
+      return;
+    }
+
+    if (isSubjectLimitReached) {
+      setNoticeModal({
+        title: 'Subject Modification Limit Reached (2/2)',
+        message: 'Under official JAMB CBT examination policy, candidates are permitted a maximum of two (2) subject combination alterations. You have exhausted your allowed attempts. To request an exceptional administrative correction, please reach out to the Center Administrator through the Help Desk.',
+        actionLabel: 'Contact Help Desk',
+        onAction: () => {
+          setNoticeModal(null);
+          setIsSupportModalOpen(true);
+        }
+      });
+      return;
+    }
+
+    setPhase('setup');
   };
 
   const handleStartExamMode = (mode, length) => {
@@ -93,11 +119,26 @@ export const DashboardView = () => {
       return;
     }
 
-    if (status === 'Pending') {
+    const isQuickSprint = mode === 'simulation' && length === 'quick';
+    const isFullMock = mode === 'simulation' && length === 'standard';
+
+    if (status !== 'Approved') {
+      if (isQuickSprint && hasFreeQuickTrial) {
+        setExamMode(mode);
+        setExamLength(length);
+        setPhase('instructions');
+        return;
+      }
+
+      if (isQuickSprint && currentUser.quickTrialUsed) {
+        triggerPaymentPrompt('Quick Sprint & Full Mock CBT Access (Free Trial Expired)');
+        return;
+      }
+
       triggerPaymentPrompt('CBT Examinations & Mock Testing');
       return;
     }
-    const isFullMock = mode === 'simulation' && length === 'standard';
+
     if (!isFullMock && !examSettings?.allowStudentPracticeMode) {
       setNoticeModal({
         title: 'CBT Schedule Advisory',
@@ -568,21 +609,20 @@ export const DashboardView = () => {
             <div className="flex items-center gap-2 self-start md:self-auto flex-shrink-0">
               <button
                 type="button"
-                onClick={() => {
-                  if (isMalpracticeSanctioned) {
-                    setIsAppealModalOpen(true);
-                    return;
-                  }
-                  if (status !== 'Approved') {
-                    triggerPaymentPrompt('Subject Combination Modification');
-                    return;
-                  }
-                  setPhase('setup');
-                }}
+                onClick={handleOpenSubjectCombination}
                 className="px-3.5 py-2 bg-white/15 hover:bg-white/25 text-amber-300 hover:text-white rounded-lg border border-amber-400/40 text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5"
               >
-                <BookOpen className="w-3.5 h-3.5" />
-                <span>Change Combination</span>
+                {isSubjectLimitReached ? (
+                  <>
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>Combination Locked (2/2)</span>
+                  </>
+                ) : (
+                  <>
+                    <BookOpen className="w-3.5 h-3.5" />
+                    <span>Change Combination ({2 - subjectChangeCount} left)</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -770,7 +810,9 @@ export const DashboardView = () => {
 
             {/* Mode 3: Quick Sprint Test (45 Qs - Timed Test) */}
             <div className={`rounded-xl p-4 sm:p-5 flex-col justify-between border transition-all ${
-              !examSettings?.allowStudentPracticeMode || status !== 'Approved'
+              hasFreeQuickTrial
+                ? 'bg-white text-slate-900 border-amber-400 ring-2 ring-amber-400/40 shadow-lg hover:shadow-xl'
+                : !examSettings?.allowStudentPracticeMode || status !== 'Approved'
                 ? 'bg-white/80 border-slate-300 opacity-90'
                 : 'bg-white text-slate-900 border-white hover:shadow-xl'
             } ${mobileActiveMode === 'simulation_quick' ? 'flex' : 'hidden md:flex'}`}>
@@ -779,9 +821,20 @@ export const DashboardView = () => {
                   <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-[#006633] px-2 py-0.5 rounded-full">
                     Sprint Drill
                   </span>
-                  <span className="text-[10px] font-bold text-slate-500">
-                    Timed Drill
-                  </span>
+                  {hasFreeQuickTrial ? (
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
+                      <Sparkles className="w-3 h-3 text-slate-950" />
+                      <span>1 Free Trial Available</span>
+                    </span>
+                  ) : status !== 'Approved' ? (
+                    <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">
+                      Free Trial Used
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold text-slate-500">
+                      Timed Drill
+                    </span>
+                  )}
                 </div>
                 <div>
                   <h3 className="text-base font-black uppercase text-slate-900 flex items-center gap-1.5">
@@ -802,12 +855,19 @@ export const DashboardView = () => {
                   type="button"
                   onClick={() => handleStartExamMode('simulation', 'quick')}
                   className={`w-full py-2.5 px-3 rounded-lg font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
-                    status !== 'Approved' || !examSettings?.allowStudentPracticeMode
+                    hasFreeQuickTrial
+                      ? 'bg-[#006633] hover:bg-[#004d25] text-white shadow-md hover:shadow-lg active:scale-95'
+                      : status !== 'Approved' || !examSettings?.allowStudentPracticeMode
                       ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300'
                       : 'bg-emerald-700 hover:bg-emerald-800 text-white shadow hover:shadow-md active:scale-95'
                   }`}
                 >
-                  {status !== 'Approved' ? (
+                  {hasFreeQuickTrial ? (
+                    <>
+                      <span>Begin Free Trial Sprint (45 Mins)</span>
+                      <ArrowRight className="w-3.5 h-3.5 stroke-[3]" />
+                    </>
+                  ) : status !== 'Approved' ? (
                     <>
                       <Lock className="w-3.5 h-3.5 text-slate-600" />
                       <span>
@@ -1053,20 +1113,34 @@ export const DashboardView = () => {
             <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
               Registered UTME 4-Subject Combination
             </h3>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                isSubjectLimitReached
+                  ? 'bg-rose-50 text-rose-800 border-rose-300'
+                  : 'bg-slate-100 text-slate-700 border-slate-300'
+              }`}>
+                Modifications: {subjectChangeCount}/2 used
+              </span>
               <button
                 type="button"
-                onClick={() => {
-                  if (status !== 'Approved') {
-                    triggerPaymentPrompt('Subject Combination Modification');
-                    return;
-                  }
-                  setPhase('setup');
-                }}
-                className="text-xs font-bold text-[#006633] hover:underline flex items-center gap-1"
+                onClick={handleOpenSubjectCombination}
+                className={`text-xs font-bold flex items-center gap-1 ${
+                  isSubjectLimitReached
+                    ? 'text-rose-700 hover:text-rose-900'
+                    : 'text-[#006633] hover:underline'
+                }`}
               >
-                <Edit3 className="w-3.5 h-3.5" />
-                <span>Change Combination</span>
+                {isSubjectLimitReached ? (
+                  <>
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>Locked (Contact Admin)</span>
+                  </>
+                ) : (
+                  <>
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>Change Combination</span>
+                  </>
+                )}
               </button>
               <span className={`text-xs font-bold px-2 py-0.5 rounded border ${
                 status === 'Approved' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-amber-50 text-amber-800 border-amber-200'
@@ -1147,7 +1221,13 @@ export const DashboardView = () => {
               <div className="pt-2">
                 <button
                   type="button"
-                  onClick={() => setNoticeModal(null)}
+                  onClick={() => {
+                    if (noticeModal.onAction) {
+                      noticeModal.onAction();
+                    } else {
+                      setNoticeModal(null);
+                    }
+                  }}
                   className="w-full py-2.5 bg-[#006633] hover:bg-[#004d25] text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow transition-all"
                 >
                   {noticeModal.actionLabel || 'Acknowledge & Close'}

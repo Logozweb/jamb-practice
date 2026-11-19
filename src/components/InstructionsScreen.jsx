@@ -138,10 +138,16 @@ export const InstructionsScreen = () => {
               </button>
               <span className="text-slate-300">|</span>
               <button
-                onClick={() => setPhase('setup')}
+                onClick={() => {
+                  if ((candidate?.subjectChangeCount || 0) >= 2) {
+                    alert("Subject Combination Modification Limit Reached (2/2). Under JAMB CBT simulation policy, you are permitted a maximum of two combination alterations. Please contact the Center Administrator via the Help Desk.");
+                    return;
+                  }
+                  setPhase('setup');
+                }}
                 className="text-xs font-bold text-emerald-800 hover:underline"
               >
-                Change Combination
+                Change Combination {(candidate?.subjectChangeCount || 0) >= 2 ? '(Limit Reached)' : ''}
               </button>
             </div>
 

@@ -16,7 +16,9 @@ import {
   apiGetAdmins,
   apiLoginAdmin,
   apiLogoutAdmin,
-  apiUpdateAdminPassword
+  apiUpdateAdminPassword,
+  apiUpdateCandidateSubjects,
+  apiRecordQuickTrialUsed
 } from '../services/dbService';
 import { fetchPublicPaymentSettings } from '../services/paymentService';
 
@@ -33,7 +35,9 @@ export const ExamProvider = ({ children }) => {
       examTime: 'Self-Paced Practice (Unlimited Attempts)',
       gender: rest.gender || 'Not Specified',
       dob: rest.dob || '2006-05-15',
-      phone: rest.phone || '080' + Math.floor(10000000 + Math.random() * 90000000)
+      phone: rest.phone || '080' + Math.floor(10000000 + Math.random() * 90000000),
+      subjectChangeCount: Number(rest.subjectChangeCount || 0),
+      quickTrialUsed: Boolean(rest.quickTrialUsed)
     };
   };
 
@@ -657,6 +661,55 @@ export const ExamProvider = ({ children }) => {
     updateCurrentUser(updated);
   };
 
+  const updateCandidateSubjects = async (newSubjects) => {
+    if (!currentUser) return { success: false, error: 'No active candidate profile.' };
+
+    const currentCount = Number(currentUser.subjectChangeCount || 0);
+    if (currentCount >= 2) {
+      return {
+        success: false,
+        limitReached: true,
+        error: 'Maximum subject combination changes reached (2/2). Under JAMB examination simulation rules, candidates are permitted a maximum of two changes. Please contact the Center Administrator via the Help Desk.'
+      };
+    }
+
+    try {
+      const remote = await apiUpdateCandidateSubjects(currentUser.id, newSubjects);
+      if (remote && remote.success && remote.candidate) {
+        const sanitized = sanitizeCandidate(remote.candidate);
+        updateCurrentUser(sanitized);
+        setSelectedSubjectIds(sanitized.selectedSubjects);
+        return { success: true, candidate: sanitized, remainingChanges: remote.remainingChanges };
+      } else if (remote && remote.limitReached) {
+        return { success: false, limitReached: true, error: remote.error };
+      }
+    } catch (e) {
+      console.warn('Network subject update error:', e);
+    }
+
+    // Local fallback update
+    const updatedCount = currentCount + 1;
+    const updated = {
+      ...currentUser,
+      selectedSubjects: newSubjects,
+      subjectChangeCount: updatedCount
+    };
+    updateCurrentUser(updated);
+    setSelectedSubjectIds(newSubjects);
+    return { success: true, candidate: updated, remainingChanges: Math.max(0, 2 - updatedCount) };
+  };
+
+  const markQuickTrialUsed = async () => {
+    if (!currentUser || currentUser.quickTrialUsed) return;
+    try {
+      await apiRecordQuickTrialUsed(currentUser.id);
+    } catch (e) {
+      console.warn('Quick trial save error:', e);
+    }
+    const updated = { ...currentUser, quickTrialUsed: true };
+    updateCurrentUser(updated);
+  };
+
   // Final Results Data
   const [finalResult, setFinalResult] = useState(() => {
     try {
@@ -829,7 +882,11 @@ export const ExamProvider = ({ children }) => {
       return;
     }
 
-    if (examSettings.requireApprovalToSit && currentUser?.status !== 'Approved') {
+    const mode = overrideMode || examMode;
+    const lengthMode = overrideLength || examLength;
+    const isFreeTrial = mode === 'simulation' && lengthMode === 'quick' && !currentUser?.quickTrialUsed;
+
+    if (!isFreeTrial && examSettings.requireApprovalToSit && currentUser?.status !== 'Approved') {
       alert(`Access Restricted: Candidate registration status is "${currentUser?.status || 'Pending'}". Platform administrator approval is required before you can sit for the CBT examination.`);
       return;
     }
@@ -846,8 +903,6 @@ export const ExamProvider = ({ children }) => {
       }
     } catch (e) {}
 
-    const mode = overrideMode || examMode;
-    const lengthMode = overrideLength || examLength;
     if (overrideLength && overrideLength !== examLength) {
       setExamLength(overrideLength);
     }
@@ -930,6 +985,9 @@ export const ExamProvider = ({ children }) => {
       : 45 * 60; // 45 minutes for 15 questions per subject (60 questions total)
     setTimerSeconds(durationSeconds);
     setIsTimerRunning(true);
+    if (isFreeTrial) {
+      markQuickTrialUsed();
+    }
     setPhase('active');
     setIsSubmitModalOpen(false);
   }, [examMode, examLength, selectedSubjectIds, apiSource, alocApiKey, examSettings, currentUser]);
@@ -1170,6 +1228,10 @@ export const ExamProvider = ({ children }) => {
       examData
     });
 
+    if (examMode === 'simulation' && examLength === 'quick') {
+      markQuickTrialUsed();
+    }
+
     setFinalResult(resultSummary);
     try {
       localStorage.setItem('jamb_final_result', JSON.stringify(resultSummary));
@@ -1407,6 +1469,8 @@ export const ExamProvider = ({ children }) => {
         deleteCandidate,
         updateCandidatePhoto,
         updateCandidateChoices,
+        updateCandidateSubjects,
+        markQuickTrialUsed,
         examSettings,
         updateExamSettings,
         paymentSettings,

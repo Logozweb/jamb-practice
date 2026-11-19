@@ -109,6 +109,34 @@ export async function apiUpdateCandidate(id, updates) {
   return null;
 }
 
+export async function apiUpdateCandidateSubjects(candidateId, selectedSubjects) {
+  try {
+    const res = await fetch('/api/candidate/update-subjects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ candidateId, selectedSubjects })
+    });
+    return await res.json();
+  } catch (err) {
+    console.warn('apiUpdateCandidateSubjects failed:', err);
+    return null;
+  }
+}
+
+export async function apiRecordQuickTrialUsed(candidateId) {
+  try {
+    const res = await fetch('/api/candidate/quick-trial-used', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ candidateId })
+    });
+    return await res.json();
+  } catch (err) {
+    console.warn('apiRecordQuickTrialUsed failed:', err);
+    return null;
+  }
+}
+
 export async function apiDeleteCandidate(id) {
   try {
     const res = await fetch(`/api/candidates/${encodeURIComponent(id)}`, {

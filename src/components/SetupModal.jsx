@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useExam } from '../context/ExamContext';
 import { AVAILABLE_SUBJECTS, FACULTY_COMBINATIONS } from '../data/subjects';
-import { BookOpen, User, Sparkles, Check, ArrowLeft, Save } from 'lucide-react';
+import { BookOpen, User, Sparkles, Check, ArrowLeft, Save, AlertTriangle, Lock, HelpCircle } from 'lucide-react';
 
 export const SetupModal = () => {
   const {
     currentUser,
     updateCurrentUser,
+    updateCandidateSubjects,
     selectedSubjectIds,
     setSelectedSubjectIds,
     setPhase
@@ -14,6 +15,11 @@ export const SetupModal = () => {
 
   const [activeFacultyIndex, setActiveFacultyIndex] = useState(0);
   const [saveToast, setSaveToast] = useState(false);
+  const [limitNotice, setLimitNotice] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const subjectChangeCount = Number(currentUser?.subjectChangeCount || 0);
+  const isLimitReached = subjectChangeCount >= 2;
 
   const handleApplyPreset = (combination, index) => {
     setActiveFacultyIndex(index);
@@ -36,7 +42,12 @@ export const SetupModal = () => {
     }
   };
 
-  const handleProceed = () => {
+  const handleProceed = async () => {
+    if (isLimitReached) {
+      setLimitNotice("Maximum subject combination modifications reached (2/2). Under JAMB CBT simulation policy, you cannot make further modifications without administrative clearance. Please contact the Center Administrator via the Help Desk.");
+      return;
+    }
+
     if (selectedSubjectIds.length !== 4) {
       alert("A valid JAMB candidate profile requires exactly 4 registered subjects. (Use of English is compulsory).");
       return;
@@ -45,18 +56,22 @@ export const SetupModal = () => {
       alert("Use of English is compulsory for all candidates.");
       return;
     }
-    setSelectedSubjectIds([...selectedSubjectIds]);
-    if (currentUser) {
-      updateCurrentUser({
-        ...currentUser,
-        center: 'ONLINE JAMB CBT SIMULATION',
-        selectedSubjects: [...selectedSubjectIds]
-      });
+
+    setIsSubmitting(true);
+    setLimitNotice(null);
+
+    const res = await updateCandidateSubjects(selectedSubjectIds);
+    setIsSubmitting(false);
+
+    if (res && !res.success) {
+      setLimitNotice(res.error || 'Failed to update subject combination.');
+      return;
     }
+
     setSaveToast(true);
     setTimeout(() => {
       setPhase('dashboard');
-    }, 400);
+    }, 600);
   };
 
   return (
@@ -94,6 +109,49 @@ export const SetupModal = () => {
 
         {/* Form Body */}
         <div className="p-6 md:p-8 space-y-8">
+          {/* Modification Limit Notice */}
+          {isLimitReached ? (
+            <div className="p-4 bg-rose-50 border-2 border-rose-400 rounded-xl flex items-start gap-3 text-rose-900 animate-in fade-in">
+              <Lock className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-wide text-rose-950">
+                  Subject Modification Limit Reached (2 of 2 Changes Used)
+                </h3>
+                <p className="text-xs text-rose-800 mt-1 leading-relaxed">
+                  Under official JAMB examination regulations, candidates are permitted a maximum of two (2) subject combination alterations. You have exhausted your allowed attempts. To request an exceptional modification, please contact the Center Administrator via the Help Desk.
+                </p>
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={() => setPhase('dashboard')}
+                    className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white rounded-lg text-xs font-bold uppercase transition-all shadow-sm"
+                  >
+                    Return to Dashboard
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-amber-950">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                <span>
+                  <strong>Subject Modification Policy:</strong> Candidates are allowed a maximum of <strong>2 alterations</strong>.
+                </span>
+              </div>
+              <span className="font-mono font-bold text-[11px] bg-amber-200/80 px-2 py-0.5 rounded text-amber-900 whitespace-nowrap self-start sm:self-auto">
+                {subjectChangeCount} of 2 Used ({2 - subjectChangeCount} remaining)
+              </span>
+            </div>
+          )}
+
+          {limitNotice && (
+            <div className="p-3.5 bg-rose-100 border border-rose-300 rounded-xl text-rose-900 text-xs font-bold flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+              <span>{limitNotice}</span>
+            </div>
+          )}
+
           {/* Section 1: Candidate Verification Info */}
           <div>
             <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-800 flex items-center gap-2 mb-4">
@@ -232,10 +290,26 @@ export const SetupModal = () => {
 
           <button
             onClick={handleProceed}
-            className="w-full sm:w-auto px-8 py-3.5 bg-[#006633] hover:bg-[#00552b] text-white font-black text-sm uppercase tracking-wider rounded-xl shadow-lg hover:shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
+            disabled={isLimitReached || isSubmitting}
+            className={`w-full sm:w-auto px-8 py-3.5 font-black text-sm uppercase tracking-wider rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 ${
+              isLimitReached || isSubmitting
+                ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none'
+                : 'bg-[#006633] hover:bg-[#00552b] text-white hover:shadow-xl active:scale-95'
+            }`}
           >
-            <Save className="w-4 h-4" />
-            <span>Save Combination & Return to Dashboard</span>
+            {isLimitReached ? (
+              <>
+                <Lock className="w-4 h-4 text-slate-500" />
+                <span>Modification Locked (Limit Reached)</span>
+              </>
+            ) : isSubmitting ? (
+              <span>Saving Changes...</span>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                <span>Save Combination & Return to Dashboard</span>
+              </>
+            )}
           </button>
         </div>
       </div>

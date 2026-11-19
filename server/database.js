@@ -229,6 +229,8 @@ function initSchema(db) {
   try { db.exec('ALTER TABLE candidates ADD COLUMN appeal_status TEXT'); } catch (e) {}
   try { db.exec('ALTER TABLE candidates ADD COLUMN appeal_date TEXT'); } catch (e) {}
   try { db.exec('ALTER TABLE candidates ADD COLUMN practice_id TEXT'); } catch (e) {}
+  try { db.exec('ALTER TABLE candidates ADD COLUMN subject_change_count INTEGER DEFAULT 0'); } catch (e) {}
+  try { db.exec('ALTER TABLE candidates ADD COLUMN quick_trial_used INTEGER DEFAULT 0'); } catch (e) {}
 
   // 13. Candidate Help Desk & Support Tickets Table
   db.exec(`
@@ -367,19 +369,27 @@ export function saveCandidate(candidate) {
     candidatePassword = hashPassword(candidatePassword);
   }
 
+  const existing = db.prepare('SELECT * FROM candidates WHERE id = ?').get(id);
+  const subjectChangeCount = candidate.subjectChangeCount !== undefined ? Number(candidate.subjectChangeCount) : (existing ? Number(existing.subject_change_count || 0) : 0);
+  const quickTrialUsed = candidate.quickTrialUsed !== undefined ? (candidate.quickTrialUsed ? 1 : 0) : (existing ? Number(existing.quick_trial_used || 0) : 0);
+  const paymentReference = candidate.paymentReference !== undefined ? candidate.paymentReference : (existing ? existing.payment_reference : null);
+  const paymentDate = candidate.paymentDate !== undefined ? candidate.paymentDate : (existing ? existing.payment_date : null);
+  const appealStatus = candidate.appealStatus !== undefined ? candidate.appealStatus : (existing ? existing.appeal_status : null);
+  const appealDate = candidate.appealDate !== undefined ? candidate.appealDate : (existing ? existing.appeal_date : null);
+
   const stmt = db.prepare(`
     INSERT OR REPLACE INTO candidates (
       id, name, email, phone, gender, dob, password, status, disapproval_reason,
       reg_number, profile_code, seat_number, center, exam_town, exam_date, exam_time,
       passport, state_of_origin, lga, target_course, faculty,
       first_choice, second_choice, third_choice, fourth_choice, selected_subjects,
-      caps, practice_id, created_at, updated_at
+      caps, practice_id, subject_change_count, quick_trial_used, payment_reference, payment_date, appeal_status, appeal_date, created_at, updated_at
     ) VALUES (
       ?, ?, ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?,
-      ?, ?, ?, ?
+      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
     )
   `);
 
@@ -419,6 +429,12 @@ export function saveCandidate(candidate) {
       admittedAt: null
     }),
     practiceId,
+    subjectChangeCount,
+    quickTrialUsed,
+    paymentReference,
+    paymentDate,
+    appealStatus,
+    appealDate,
     candidate.createdAt || now,
     now
   );
@@ -521,6 +537,8 @@ function formatCandidateFromDb(row) {
     paymentDate: row.payment_date || null,
     appealStatus: row.appeal_status || null,
     appealDate: row.appeal_date || null,
+    subjectChangeCount: Number(row.subject_change_count || 0),
+    quickTrialUsed: Boolean(row.quick_trial_used),
     examHistory,
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -1220,6 +1238,64 @@ export function adminUpdateCandidate(id, updates = {}) {
   }
 
   return { success: true, candidate: getCandidateById(id) };
+}
+
+export function updateCandidateSubjectCombination(candidateId, newSubjects) {
+  const db = getDatabase();
+  const cand = getCandidateById(candidateId);
+  if (!cand) return { success: false, error: 'Candidate profile not found.' };
+
+  const currentCount = Number(cand.subjectChangeCount || 0);
+  if (currentCount >= 2) {
+    return {
+      success: false,
+      error: 'Maximum subject combination changes reached (2/2). Under JAMB CBT simulation policy, you are permitted a maximum of two changes. Please contact the Center Administrator via the Help Desk.',
+      limitReached: true,
+      subjectChangeCount: currentCount
+    };
+  }
+
+  if (!Array.isArray(newSubjects) || newSubjects.length !== 4) {
+    return { success: false, error: 'A valid JAMB candidate profile requires exactly 4 registered subjects.' };
+  }
+
+  if (!newSubjects.includes('english')) {
+    return { success: false, error: 'Use of English is compulsory for all candidates.' };
+  }
+
+  const now = new Date().toISOString();
+  const newCount = currentCount + 1;
+
+  db.prepare(`
+    UPDATE candidates
+    SET selected_subjects = ?,
+        subject_change_count = ?,
+        updated_at = ?
+    WHERE id = ?
+  `).run(JSON.stringify(newSubjects), newCount, now, candidateId);
+
+  return {
+    success: true,
+    candidate: getCandidateById(candidateId),
+    subjectChangeCount: newCount,
+    remainingChanges: Math.max(0, 2 - newCount)
+  };
+}
+
+export function recordQuickTrialUsed(candidateId) {
+  const db = getDatabase();
+  const cand = getCandidateById(candidateId);
+  if (!cand) return { success: false, error: 'Candidate not found.' };
+
+  const now = new Date().toISOString();
+  db.prepare(`
+    UPDATE candidates
+    SET quick_trial_used = 1,
+        updated_at = ?
+    WHERE id = ?
+  `).run(now, candidateId);
+
+  return { success: true, candidate: getCandidateById(candidateId) };
 }
 
 // -------------------------------------------------------------

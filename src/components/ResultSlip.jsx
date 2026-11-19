@@ -16,11 +16,14 @@ import {
   Sparkles,
   Filter,
   Check,
-  HelpCircle
+  HelpCircle,
+  ArrowRight,
+  Lock
 } from 'lucide-react';
 
 export const ResultSlip = () => {
-  const { finalResult, currentUser, setPhase } = useExam();
+  const { finalResult, currentUser, setPhase, paymentSettings } = useExam();
+  const accessFee = paymentSettings?.accessFeeNaira ?? 50;
 
   // Helper to determine mode metadata and styling for an exam attempt
   const getAttemptMeta = (att) => {
@@ -222,6 +225,33 @@ export const ResultSlip = () => {
 
   return (
     <div className="min-h-screen bg-[#F0F2F5] py-8 px-4 flex flex-col items-center">
+      {/* Promotional Notice for Unapproved Candidates who used Quick Sprint Trial */}
+      {currentUser?.status !== 'Approved' && (
+        <div className="max-w-4xl w-full mb-4 p-4 sm:p-5 bg-gradient-to-r from-amber-500/10 via-emerald-500/15 to-amber-500/10 border-2 border-[#006633] rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 no-print shadow-sm animate-in fade-in">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#006633] text-white flex items-center justify-center flex-shrink-0 shadow">
+              <Sparkles className="w-5 h-5 text-amber-300" />
+            </div>
+            <div>
+              <h3 className="text-xs sm:text-sm font-black uppercase text-slate-900">
+                Quick Sprint Free Trial Completed!
+              </h3>
+              <p className="text-xs text-slate-600 mt-0.5">
+                You have used your 1 complimentary preview trial. Complete candidate examination clearance to unlock unlimited Full Mock simulations, detailed CAPS admission processing, and all study drill modes.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setPhase('dashboard')}
+            className="w-full sm:w-auto px-5 py-2.5 bg-[#006633] hover:bg-[#004d25] text-white rounded-xl text-xs font-black uppercase tracking-wider shadow hover:shadow-md transition-all flex items-center justify-center gap-2 flex-shrink-0"
+          >
+            <span>Unlock Full Access (₦{accessFee}.00)</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Top Action Bar (hidden when printing) - 4 Buttons strictly aligned on a single line */}
       <div className="max-w-4xl w-full mb-4 grid grid-cols-4 gap-2 sm:gap-3 no-print">
         <button
@@ -232,11 +262,17 @@ export const ResultSlip = () => {
         </button>
 
         <button
-          onClick={() => setPhase('instructions')}
+          onClick={() => {
+            if (currentUser?.status !== 'Approved') {
+              setPhase('dashboard');
+            } else {
+              setPhase('instructions');
+            }
+          }}
           className="w-full h-11 flex items-center justify-center gap-1.5 px-2 sm:px-3 bg-white hover:bg-slate-100 text-slate-800 rounded-xl border border-slate-300 font-bold text-[11px] sm:text-xs uppercase tracking-wider shadow-sm hover:shadow transition-all whitespace-nowrap active:scale-95"
         >
           <RotateCcw className="w-3.5 h-3.5 text-emerald-700 flex-shrink-0" />
-          <span>Retake Exam</span>
+          <span>{currentUser?.status !== 'Approved' ? 'Unlock Portal' : 'Retake Exam'}</span>
         </button>
 
         <button

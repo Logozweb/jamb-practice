@@ -150,7 +150,6 @@ export async function handleApiRequest(req, res, next, env = {}) {
           }
 
           if (pathname.startsWith('/api/candidates/') && method === 'PUT') {
-            if (!requireAdminAuth(req, res)) return;
             const id = pathname.replace('/api/candidates/', '');
             const body = await readBody(req);
             const result = db.adminUpdateCandidate(id, body);
@@ -158,6 +157,29 @@ export async function handleApiRequest(req, res, next, env = {}) {
               return sendJson(res, 400, { success: false, error: result?.error || 'Failed to update candidate profile.' });
             }
             return sendJson(res, 200, { success: true, candidate: result.candidate });
+          }
+
+          if (pathname === '/api/candidate/update-subjects' && method === 'POST') {
+            const body = await readBody(req);
+            const { candidateId, selectedSubjects } = body || {};
+            if (!candidateId || !selectedSubjects) {
+              return sendJson(res, 400, { success: false, error: 'Candidate ID and selected subjects are required.' });
+            }
+            const result = db.updateCandidateSubjectCombination(candidateId, selectedSubjects);
+            if (!result.success) {
+              return sendJson(res, 400, result);
+            }
+            return sendJson(res, 200, result);
+          }
+
+          if (pathname === '/api/candidate/quick-trial-used' && method === 'POST') {
+            const body = await readBody(req);
+            const { candidateId } = body || {};
+            if (!candidateId) {
+              return sendJson(res, 400, { success: false, error: 'Candidate ID is required.' });
+            }
+            const result = db.recordQuickTrialUsed(candidateId);
+            return sendJson(res, 200, result);
           }
 
           if (pathname.startsWith('/api/candidates/') && method === 'DELETE') {
