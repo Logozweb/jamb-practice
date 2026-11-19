@@ -44,7 +44,9 @@ function loadEnvFile() {
 }
 
 const env = { ...loadEnvFile(), ...process.env };
-const PORT = parseInt(process.env.PORT || env.PORT || '3000', 10);
+const rawPort = process.env.PORT || env.PORT || '3000';
+const isSocketOrNamedPipe = typeof rawPort === 'string' && (rawPort.startsWith('/') || rawPort.startsWith('\\\\') || isNaN(Number(rawPort)));
+const PORT = isSocketOrNamedPipe ? rawPort : parseInt(rawPort, 10);
 const HOST = process.env.HOST || '0.0.0.0';
 
 const MIME_TYPES = {
@@ -170,16 +172,29 @@ try {
   console.error('Fatal: Could not initialize SQLite database on startup:', err);
 }
 
-server.listen(PORT, HOST, () => {
-  console.log('====================================================');
-  console.log('   JAMB PRACTICE CBT PLATFORM - PRODUCTION SERVER   ');
-  console.log('====================================================');
-  console.log(`> Server running on: http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
-  console.log(`> Environment:      production`);
-  console.log(`> Database:         SQLite (server/jamb_practice.db)`);
-  console.log(`> Frontend assets:  dist/`);
-  console.log('====================================================\n');
-});
+if (isSocketOrNamedPipe) {
+  server.listen(PORT, () => {
+    console.log('====================================================');
+    console.log('   JAMB PRACTICE CBT PLATFORM - PRODUCTION SERVER   ');
+    console.log('====================================================');
+    console.log(`> Server running on Passenger socket: ${PORT}`);
+    console.log(`> Environment:      production`);
+    console.log(`> Database:         SQLite (server/jamb_practice.db)`);
+    console.log(`> Frontend assets:  dist/`);
+    console.log('====================================================\n');
+  });
+} else {
+  server.listen(PORT, HOST, () => {
+    console.log('====================================================');
+    console.log('   JAMB PRACTICE CBT PLATFORM - PRODUCTION SERVER   ');
+    console.log('====================================================');
+    console.log(`> Server running on: http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
+    console.log(`> Environment:      production`);
+    console.log(`> Database:         SQLite (server/jamb_practice.db)`);
+    console.log(`> Frontend assets:  dist/`);
+    console.log('====================================================\n');
+  });
+}
 
 // Graceful shutdown handling
 function gracefulShutdown(signal) {

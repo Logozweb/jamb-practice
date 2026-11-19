@@ -1,0 +1,20 @@
+# --- LiteSpeed & Apache Routing Rules for JAMB CBT Simulator ---
+DirectoryIndex dist/index.html index.html
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # 1. Do not rewrite API requests - pass directly to Node.js backend
+  RewriteRule ^api/ - [L]
+
+  # 2. Map static asset requests to compiled dist/assets
+  RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
+
+  # 3. If file or directory exists directly, serve it
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # 4. SPA Client-Side Routing Fallback
+  RewriteRule ^ dist/index.html [L]
+</IfModule>
