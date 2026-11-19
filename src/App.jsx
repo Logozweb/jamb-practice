@@ -48,8 +48,12 @@ const ExamPortal = () => {
       const hash = window.location.hash.toLowerCase();
       const search = window.location.search.toLowerCase();
 
-      if (path === '/admin' || hash === '#/admin' || search.includes('admin')) {
+      if (path === '/letustalk1' || hash === '#/letustalk1' || search.includes('letustalk1')) {
         setPhase('admin-login');
+      } else if (path === '/admin' || hash === '#/admin') {
+        // Prevent unauthorized /admin access by resetting URL to root
+        window.history.replaceState(null, '', '/');
+        setPhase(currentUser ? 'dashboard' : 'login');
       }
     };
 
@@ -60,7 +64,7 @@ const ExamPortal = () => {
       window.removeEventListener('popstate', checkAdminRoute);
       window.removeEventListener('hashchange', checkAdminRoute);
     };
-  }, [setPhase]);
+  }, [setPhase, currentUser]);
 
   const renderCurrentView = () => {
     // Admin console routes

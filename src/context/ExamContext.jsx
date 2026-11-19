@@ -80,8 +80,8 @@ export const ExamProvider = ({ children }) => {
   // App Phase: 'login' (default if not logged in) | 'dashboard' | 'register' | 'registration-slip' | 'caps' | 'setup' | 'instructions' | 'active' | 'result'
   const [phase, setPhase] = useState(() => {
     try {
-      const hash = window.location.hash || window.location.pathname;
-      if (hash.includes('admin')) return 'admin-login';
+      const hash = (window.location.hash || window.location.pathname || '').toLowerCase();
+      if (hash.includes('letustalk1')) return 'admin-login';
       const activeId = localStorage.getItem('jamb_active_candidate_id');
       if (activeId && activeId !== 'cand_demo_01') return 'dashboard';
     } catch (e) {}

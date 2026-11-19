@@ -2,6 +2,7 @@ import * as db from './database.js';
 import {
   dispatchEmail,
   dispatchWelcomeEmail,
+  dispatchAdminNewRegistrationNotification,
   dispatchPaymentReceiptEmail,
   dispatchAppealDecisionEmail,
   dispatchTicketAckEmail,
@@ -135,8 +136,18 @@ export async function handleApiRequest(req, res, next, env = {}) {
             const body = await readBody(req);
             const saved = db.saveCandidate(body);
             if (saved && saved.email && !body.skipWelcomeEmail) {
+              // 1. Dispatch confirmation email to student
               dispatchWelcomeEmail(saved, env).catch(err => {
                 console.warn('Asynchronous welcome email dispatch note:', err.message);
+              });
+
+              // 2. Dispatch real-time registration alert to platform administrator
+              dispatchAdminNewRegistrationNotification({
+                candidate: saved,
+                adminUrl: 'https://jamb.pauladisa.com/letustalk1',
+                env
+              }).catch(err => {
+                console.warn('Asynchronous admin registration alert note:', err.message);
               });
             }
             return sendJson(res, 201, saved);
@@ -808,11 +819,11 @@ export async function handleApiRequest(req, res, next, env = {}) {
             const error = url.searchParams.get('error');
 
             if (error) {
-              res.writeHead(302, { Location: `/#/admin?gmail_error=${encodeURIComponent(error)}` });
+              res.writeHead(302, { Location: `/#/letustalk1?gmail_error=${encodeURIComponent(error)}` });
               return res.end();
             }
             if (!code) {
-              res.writeHead(302, { Location: '/#/admin?gmail_error=No_authorization_code_received' });
+              res.writeHead(302, { Location: '/#/letustalk1?gmail_error=No_authorization_code_received' });
               return res.end();
             }
 
@@ -831,7 +842,7 @@ export async function handleApiRequest(req, res, next, env = {}) {
             const tokenData = await tokenRes.json();
             if (!tokenRes.ok) {
               res.writeHead(302, {
-                Location: `/#/admin?gmail_error=${encodeURIComponent(tokenData.error_description || tokenData.error || 'Token exchange failed')}`
+                Location: `/#/letustalk1?gmail_error=${encodeURIComponent(tokenData.error_description || tokenData.error || 'Token exchange failed')}`
               });
               return res.end();
             }
@@ -854,7 +865,7 @@ export async function handleApiRequest(req, res, next, env = {}) {
             });
 
             res.writeHead(302, {
-              Location: `/#/admin?gmail_connected=true&email=${encodeURIComponent(userEmail)}`
+              Location: `/#/letustalk1?gmail_connected=true&email=${encodeURIComponent(userEmail)}`
             });
             return res.end();
           }

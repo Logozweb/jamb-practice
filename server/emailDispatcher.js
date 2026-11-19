@@ -742,3 +742,165 @@ export async function dispatchTicketReplyEmail({ candidate, ticket, reply, env =
     return { success: false, error: err.message };
   });
 }
+
+export function buildAdminNewRegistrationNotificationHtml({ candidate, adminUrl = 'https://jamb.pauladisa.com/letustalk1' }) {
+  const subjectsList = Array.isArray(candidate.selectedSubjects)
+    ? candidate.selectedSubjects.map(s => String(s).toUpperCase()).join(' • ')
+    : 'ENGLISH • MATHEMATICS • PHYSICS • CHEMISTRY';
+
+  const regTimestamp = new Date().toLocaleString('en-NG', {
+    timeZone: 'Africa/Lagos',
+    dateStyle: 'full',
+    timeStyle: 'medium'
+  });
+
+  const firstChoiceInst = candidate.firstChoice?.institution || candidate.firstChoiceInstitution || 'Not Specified';
+  const firstChoiceCourse = candidate.firstChoice?.course || candidate.firstChoiceCourse || candidate.targetCourse || 'Not Specified';
+  const secondChoiceInst = candidate.secondChoice?.institution || candidate.secondChoiceInstitution || 'Not Specified';
+  const secondChoiceCourse = candidate.secondChoice?.course || candidate.secondChoiceCourse || 'Not Specified';
+
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 580px; padding: 24px; border: 1.5px solid #006633; border-radius: 12px; margin: auto; background-color: #fafafa;">
+      <!-- Header -->
+      <div style="background: #004d25; color: white; padding: 22px; text-align: center; border-radius: 8px; border-bottom: 4px solid #ffc107;">
+        <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; color: #ffc107;">Central Admin Notification System</div>
+        <h2 style="margin: 6px 0 0; font-size: 20px; text-transform: uppercase;">New Candidate Registration Alert</h2>
+        <p style="margin: 4px 0 0; font-size: 12px; color: #a7f3d0;">Independent UTME CBT Practice Simulator</p>
+      </div>
+
+      <!-- Content Box -->
+      <div style="padding: 22px; background-color: white; border-radius: 8px; margin-top: 15px; border: 1px solid #e0e0e0;">
+        <div style="display: inline-block; background-color: #ecfdf5; border: 1px solid #6ee7b7; color: #065f46; padding: 6px 14px; border-radius: 999px; font-size: 11px; font-weight: bold; margin-bottom: 16px; letter-spacing: 0.5px;">
+          PROFILE CREATED &amp; PENDING ADMINISTRATIVE REVIEW
+        </div>
+
+        <p style="margin: 0 0 12px; font-size: 14px; color: #1e293b;">
+          Hello Administrator,
+        </p>
+
+        <p style="margin: 0 0 16px; font-size: 13px; color: #475569; line-height: 1.5;">
+          A new candidate has completed registration on the CBT Practice Simulator platform. Below are the verified candidate profile details:
+        </p>
+
+        <!-- Candidate Details Table -->
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 15px 0;">
+          <table style="width: 100%; font-size: 12px; color: #334155; border-collapse: collapse;">
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 7px 0; color: #64748b; font-weight: 600; width: 38%;">Candidate Full Name:</td>
+              <td style="padding: 7px 0; font-weight: bold; color: #0f172a; font-size: 13px;">${candidate.name || 'Candidate'}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 7px 0; color: #64748b; font-weight: 600;">Practice ID:</td>
+              <td style="padding: 7px 0; font-weight: bold; font-family: monospace; color: #006633; font-size: 13px;">${candidate.practiceId || 'Pending'}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 7px 0; color: #64748b; font-weight: 600;">Registration Number:</td>
+              <td style="padding: 7px 0; font-weight: bold; font-family: monospace; color: #334155;">${candidate.regNumber || 'Pending'}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 7px 0; color: #64748b; font-weight: 600;">Email Address:</td>
+              <td style="padding: 7px 0; font-family: monospace; color: #0284c7;">
+                <a href="mailto:${candidate.email}" style="color: #0284c7; text-decoration: none;">${candidate.email || 'N/A'}</a>
+              </td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 7px 0; color: #64748b; font-weight: 600;">Phone Number:</td>
+              <td style="padding: 7px 0; font-family: monospace;">${candidate.phone || 'Not Provided'}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 7px 0; color: #64748b; font-weight: 600;">State &amp; LGA:</td>
+              <td style="padding: 7px 0;">${candidate.stateOfOrigin || candidate.state || 'N/A'}, ${candidate.lga || 'N/A'}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 7px 0; color: #64748b; font-weight: 600;">Assigned Virtual Desk:</td>
+              <td style="padding: 7px 0; font-weight: 600;">${candidate.seatNumber || 'Virtual Desk'}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 7px 0; color: #64748b; font-weight: 600;">Registered Subjects (4):</td>
+              <td style="padding: 7px 0; font-weight: bold; color: #006633;">${subjectsList}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 7px 0; color: #64748b; font-weight: 600;">1st Choice Institution:</td>
+              <td style="padding: 7px 0;">${firstChoiceInst} (${firstChoiceCourse})</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 7px 0; color: #64748b; font-weight: 600;">2nd Choice Institution:</td>
+              <td style="padding: 7px 0;">${secondChoiceInst} (${secondChoiceCourse})</td>
+            </tr>
+            <tr>
+              <td style="padding: 7px 0; color: #64748b; font-weight: 600;">Registration Timestamp:</td>
+              <td style="padding: 7px 0; color: #64748b; font-size: 11px;">${regTimestamp} (WAT)</td>
+            </tr>
+          </table>
+        </div>
+
+        <!-- Call to Action Button -->
+        <div style="text-align: center; margin: 24px 0 12px;">
+          <a href="${adminUrl}" style="background-color: #006633; color: #ffffff; text-decoration: none; padding: 13px 28px; border-radius: 8px; font-weight: bold; font-size: 13px; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+            Review in Admin Console &rarr;
+          </a>
+        </div>
+        <div style="text-align: center; font-size: 11px; color: #94a3b8;">
+          Admin Link: <a href="${adminUrl}" style="color: #64748b; font-family: monospace;">${adminUrl}</a>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div style="text-align: center; margin-top: 16px; font-size: 11px; color: #888; line-height: 1.4;">
+        Independent UTME CBT Simulator • Central Admin Notification Service<br/>
+        Automated platform transmission triggered by candidate self-registration.
+      </div>
+    </div>
+  `;
+}
+
+export async function dispatchAdminNewRegistrationNotification({ candidate, adminUrl = 'https://jamb.pauladisa.com/letustalk1', env = {} }) {
+  let adminEmails = [];
+
+  try {
+    const admins = db.getAllAdmins();
+    if (Array.isArray(admins)) {
+      adminEmails = admins
+        .map(a => (a.email || '').trim().toLowerCase())
+        .filter(e => e.includes('@'));
+    }
+  } catch (err) {
+    console.warn('Could not read admin users from database:', err.message);
+  }
+
+  // Ensure default fallback administrator email if no admin users in db
+  if (adminEmails.length === 0) {
+    const fallback = (env.ADMIN_EMAIL || process.env.ADMIN_EMAIL || 'hello@pauladisa.com').trim().toLowerCase();
+    adminEmails.push(fallback);
+  }
+
+  // Ensure hello@pauladisa.com is always included in admin alerts
+  if (!adminEmails.includes('hello@pauladisa.com')) {
+    adminEmails.push('hello@pauladisa.com');
+  }
+
+  // Remove duplicates
+  adminEmails = [...new Set(adminEmails)];
+
+  const subject = `[New Student Registration] ${candidate.name || 'Candidate'} (${candidate.practiceId || candidate.regNumber || 'New'})`;
+  const html = buildAdminNewRegistrationNotificationHtml({ candidate, adminUrl });
+
+  const results = [];
+  for (const email of adminEmails) {
+    try {
+      const res = await dispatchEmail({
+        to: email,
+        candidateName: 'Administrator',
+        subject,
+        html,
+        env
+      });
+      results.push({ email, success: res.success, provider: res.provider });
+    } catch (err) {
+      console.warn(`Admin registration notification dispatch to ${email} failed:`, err.message);
+      results.push({ email, success: false, error: err.message });
+    }
+  }
+
+  return { success: true, dispatchedTo: adminEmails, results };
+}
