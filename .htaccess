@@ -4,17 +4,20 @@ DirectoryIndex dist/index.html index.html
 <IfModule mod_rewrite.c>
   RewriteEngine On
 
-  # 1. Do not rewrite API requests - pass directly to Node.js backend
+  # 1. Do not rewrite backend API requests - pass straight to Node.js backend
   RewriteRule ^api/ - [L]
 
-  # 2. Map static asset requests to compiled dist/assets
+  # 2. When root or index.html is requested, serve compiled dist/index.html
+  RewriteRule ^$ dist/index.html [L]
+  RewriteRule ^index\.html$ dist/index.html [L]
+
+  # 3. Map asset requests directly to dist/assets
   RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
 
-  # 3. If file or directory exists directly, serve it
-  RewriteCond %{REQUEST_FILENAME} -f [OR]
-  RewriteCond %{REQUEST_FILENAME} -d
+  # 4. If actual file exists directly, serve it
+  RewriteCond %{REQUEST_FILENAME} -f
   RewriteRule ^ - [L]
 
-  # 4. SPA Client-Side Routing Fallback
+  # 5. SPA Client-Side Routing Fallback
   RewriteRule ^ dist/index.html [L]
 </IfModule>

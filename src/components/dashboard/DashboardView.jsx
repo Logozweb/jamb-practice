@@ -1131,7 +1131,7 @@ export const DashboardView = () => {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {currentUser.selectedSubjects.map((subId, idx) => {
+            {(Array.isArray(currentUser.selectedSubjects) ? currentUser.selectedSubjects : ['english', 'mathematics', 'physics', 'chemistry']).map((subId, idx) => {
               const subMeta = AVAILABLE_SUBJECTS.find(s => s.id === subId);
               return (
                 <div key={subId} className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex items-center gap-3">
