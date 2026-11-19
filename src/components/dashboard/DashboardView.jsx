@@ -605,26 +605,6 @@ export const DashboardView = () => {
                 Select your preferred mode below. <strong>Official Notice:</strong> Only the <span className="text-amber-300 font-bold">Full Mock Exam (180 Qs)</span> is officially recorded in the platform's Central Admin Score Log.
               </p>
             </div>
-
-            <div className="flex items-center gap-2 self-start md:self-auto flex-shrink-0">
-              <button
-                type="button"
-                onClick={handleOpenSubjectCombination}
-                className="px-3.5 py-2 bg-white/15 hover:bg-white/25 text-amber-300 hover:text-white rounded-lg border border-amber-400/40 text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5"
-              >
-                {isSubjectLimitReached ? (
-                  <>
-                    <Lock className="w-3.5 h-3.5" />
-                    <span>Combination Locked (2/2)</span>
-                  </>
-                ) : (
-                  <>
-                    <BookOpen className="w-3.5 h-3.5" />
-                    <span>Change Combination ({2 - subjectChangeCount} left)</span>
-                  </>
-                )}
-              </button>
-            </div>
           </div>
 
           {/* Mobile Mode Switcher Tabs (< md) */}
@@ -824,7 +804,7 @@ export const DashboardView = () => {
                   {hasFreeQuickTrial ? (
                     <span className="text-[10px] font-black uppercase tracking-wider bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
                       <Sparkles className="w-3 h-3 text-slate-950" />
-                      <span>1 Free Trial Available</span>
+                      <span>1 Free Trial</span>
                     </span>
                   ) : status !== 'Approved' ? (
                     <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">
@@ -864,7 +844,7 @@ export const DashboardView = () => {
                 >
                   {hasFreeQuickTrial ? (
                     <>
-                      <span>Begin Free Trial Sprint (45 Mins)</span>
+                      <span>Begin Free Trial</span>
                       <ArrowRight className="w-3.5 h-3.5 stroke-[3]" />
                     </>
                   ) : status !== 'Approved' ? (
